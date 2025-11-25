@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, Column, Integer, Float, DateTime, String, Text, JSON, ForeignKey, Date
+from sqlalchemy import create_engine, Column, Integer, Float, DateTime, String, Text, JSON, ForeignKey, Date, Table
 from sqlalchemy.orm import sessionmaker, relationship, declarative_base
 
 engine = create_engine("sqlite:///../test.sqlite")
@@ -6,42 +6,55 @@ Session = sessionmaker(bind=engine)
 
 Base = declarative_base()
 
+story_topic = Table(
+    "story_topic",
+    Base.metadata,
+    Column("story_id", ForeignKey("story.id"), primary_key=True),
+    Column("topic_id", ForeignKey("topic.id"), primary_key=True),
+)
 
-class Post(Base):
-    __tablename__ = 'post'
+
+class Topic(Base):
+    __tablename__ = 'topic'
+    id = Column(Integer, primary_key=True)
+    description = Column(Text, nullable=True)
+    keywords = Column(JSON, nullable=True)
+    category = Column(String, nullable=True)
+    created = Column(DateTime, nullable=False)
+
+    stories = relationship("Story", secondary=story_topic, back_populates="topics")
+
+
+class Story(Base):
+    __tablename__ = 'story'
 
     id = Column(Integer, primary_key=True)
-    subreddit_id = Column(Integer, ForeignKey("subreddit.id"), nullable=False)
-    subreddit = relationship("Subreddit", back_populates="posts")
+    hacker_news_id = Column(Integer, nullable=False)
 
     daily_trend_summary_id = Column(Integer, ForeignKey("daily_trend_summary.id"), nullable=True)
-    daily_trend_summary = relationship("DailyTrendSummary", back_populates=...)
+    daily_trend_summary = relationship("DailyTrendSummary", back_populates="stories")
 
     comments = relationship("Comment", cascade="all, delete", order_by="Comment.id")
 
-    title = Column(String, nullable=False)
-    url = Column(String, nullable=True)
+    title = Column(String, nullable=True)  # Optional for comments/pollopts
+    url = Column(String, nullable=True)  # Optional, e.g., HackerNews story/job URL
     author = Column(String, nullable=True)
-    score = Column(Integer, nullable=False)
-    body = Column(Text, nullable=False)
-    num_comments = Column(Integer, nullable=False)
+    score = Column(Integer, nullable=True)  # Optional, e.g., comments may not have score
+    text = Column(Text, nullable=True)
+    num_comments = Column(Integer, nullable=True)  # HackerNews: descendants
     created = Column(DateTime, nullable=False)
     sentiment = Column(JSON, nullable=True)
-    topics = Column(JSON, nullable=True)
     summary = Column(Text, nullable=True)
 
+    type = Column(String, nullable=True)  # "story", "comment", "poll", etc.
+    deleted = Column(Integer, nullable=True)  # 0 or 1
+    dead = Column(Integer, nullable=True)  # 0 or 1
+    parent_id = Column(Integer, nullable=True)  # Parent comment or story
+    poll_id = Column(Integer, nullable=True)  # For pollopts
+    kids = Column(JSON, nullable=True)  # List of child IDs
+    parts = Column(JSON, nullable=True)  # List of poll option IDs
 
-class Subreddit(Base):
-    __tablename__ = 'subreddit'
-
-    posts = relationship("Post", cascade="all, delete", order_by="Post.id")
-
-    id = Column(Integer, primary_key=True)
-    title = Column(String, nullable=False)
-    description = Column(Text, nullable=False)
-    subscribers = Column(Integer, nullable=False)
-    category = Column(String, nullable=True)
-    created = Column(DateTime, nullable=False)
+    topics = relationship("Topic", secondary=story_topic, back_populates="stories")
 
 
 class Comment(Base):
@@ -49,8 +62,8 @@ class Comment(Base):
 
     id = Column(Integer, primary_key=True)
 
-    post_id = Column(Integer, ForeignKey("post.id"), nullable=False)
-    post = relationship("Post", back_populates="comments")
+    story_id = Column(Integer, ForeignKey("story.id"), nullable=False)
+    story = relationship("story", back_populates="comments")
 
     author = Column(String, nullable=True)
     body = Column(Text, nullable=False)
