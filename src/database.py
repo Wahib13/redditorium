@@ -1,8 +1,11 @@
+import datetime
+from contextlib import contextmanager
+
 from sqlalchemy import create_engine, Column, Integer, Float, DateTime, String, Text, JSON, ForeignKey, Date, Table
-from sqlalchemy.orm import sessionmaker, relationship, declarative_base
+from sqlalchemy.orm import sessionmaker, relationship, declarative_base, Session
 
 engine = create_engine("sqlite:///../test.sqlite")
-Session = sessionmaker(bind=engine)
+session_maker_instance = sessionmaker(bind=engine)
 
 Base = declarative_base()
 
@@ -20,7 +23,7 @@ class Topic(Base):
     description = Column(Text, nullable=True)
     keywords = Column(JSON, nullable=True)
     category = Column(String, nullable=True)
-    created = Column(DateTime, nullable=False)
+    created = Column(DateTime, nullable=False, default=datetime.datetime.utcnow)
 
     stories = relationship("Story", secondary=story_topic, back_populates="topics")
 
@@ -42,7 +45,7 @@ class Story(Base):
     score = Column(Integer, nullable=True)  # Optional, e.g., comments may not have score
     text = Column(Text, nullable=True)
     num_comments = Column(Integer, nullable=True)  # HackerNews: descendants
-    created = Column(DateTime, nullable=False)
+    created = Column(DateTime, nullable=False, default=datetime.datetime.utcnow)
     sentiment = Column(JSON, nullable=True)
     summary = Column(Text, nullable=True)
 
@@ -63,7 +66,7 @@ class Comment(Base):
     id = Column(Integer, primary_key=True)
 
     story_id = Column(Integer, ForeignKey("story.id"), nullable=False)
-    story = relationship("story", back_populates="comments")
+    story = relationship("Story", back_populates="comments")
 
     author = Column(String, nullable=True)
     body = Column(Text, nullable=False)
@@ -83,5 +86,28 @@ class DailyTrendSummary(Base):
     dominant_topics = Column(JSON, nullable=True)
     predicted_trends = Column(JSON, nullable=True)
 
+    stories = relationship("Story", back_populates="daily_trend_summary")
 
-Base.metadata.create_all(engine)
+
+@contextmanager
+def get_session() -> Session:
+    db = session_maker_instance()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
+def initialise_database():
+    Base.metadata.drop_all(engine)
+    Base.metadata.create_all(engine)
+
+    with get_session() as session:
+        default_topic: Topic = Topic(
+            description="default topic"
+        )
+        session.add(default_topic)
+        session.commit()
+
+
+initialise_database()
