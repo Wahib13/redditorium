@@ -32,6 +32,11 @@ Make a copy of the example environment file:
 cp .env.example .env
 ```
 
+4. Export environment variables
+```commandline
+export $(grep -v '^#' .env | xargs)
+```
+
 # Running Tests
 ```commandline
 cd src/
