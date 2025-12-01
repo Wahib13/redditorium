@@ -52,3 +52,24 @@ def sample_stories():
             url="https://example.com/"
         )
     ]
+
+
+@pytest.fixture
+def sample_stories_with_updates(sample_stories):
+    updated_stories = sample_stories.copy()
+    updated_stories[0].text += "updated title"
+    return updated_stories
+
+
+@pytest.fixture
+def sample_stories_with_new_story(sample_stories):
+    updated_stories = sample_stories.copy()
+    updated_stories.append(
+        HackerNewsItem(
+            id=3,
+            type=Type.STORY,
+            text="Hello World",
+            url="https://example.com/"
+        )
+    )
+    return updated_stories
