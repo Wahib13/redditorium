@@ -1,13 +1,9 @@
 import datetime
-from contextlib import contextmanager
 
-from sqlalchemy import create_engine, Column, Integer, Float, DateTime, String, Text, JSON, ForeignKey, Date, Table
-from sqlalchemy.orm import sessionmaker, relationship, declarative_base, Session
+from sqlalchemy import Column, Integer, DateTime, String, Text, JSON, ForeignKey, Date, Table
+from sqlalchemy.orm import relationship
 
-engine = create_engine("sqlite:///../test.sqlite")
-session_maker_instance = sessionmaker(bind=engine)
-
-Base = declarative_base()
+from db.connection import Base
 
 story_topic = Table(
     "story_topic",
@@ -32,7 +28,7 @@ class Story(Base):
     __tablename__ = 'story'
 
     id = Column(Integer, primary_key=True)
-    hacker_news_id = Column(Integer, nullable=False)
+    hacker_news_id = Column(Integer, nullable=False, index=True, unique=True)
 
     daily_trend_summary_id = Column(Integer, ForeignKey("daily_trend_summary.id"), nullable=True)
     daily_trend_summary = relationship("DailyTrendSummary", back_populates="stories")
@@ -88,26 +84,3 @@ class DailyTrendSummary(Base):
 
     stories = relationship("Story", back_populates="daily_trend_summary")
 
-
-@contextmanager
-def get_session() -> Session:
-    db = session_maker_instance()
-    try:
-        yield db
-    finally:
-        db.close()
-
-
-def initialise_database():
-    Base.metadata.drop_all(engine)
-    Base.metadata.create_all(engine)
-
-    with get_session() as session:
-        default_topic: Topic = Topic(
-            description="default topic"
-        )
-        session.add(default_topic)
-        session.commit()
-
-
-initialise_database()

@@ -1,8 +1,11 @@
+import logging
 from datetime import datetime
 from enum import Enum
-from typing import Optional, List
+from typing import Optional, List, Union
 
 from pydantic import BaseModel, HttpUrl, ValidationError
+
+logger = logging.getLogger(__name__)
 
 
 class Type(Enum):
@@ -37,5 +40,4 @@ class HackerNewsItem(BaseModel):
         try:
             return cls(**data)
         except ValidationError as e:
-            print("Validation error:", e)
-            return None
+            logger.exception(f"Validation error in news item: {data}")
