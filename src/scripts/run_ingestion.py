@@ -9,5 +9,4 @@ with get_session() as session:
     hackernews.fetch_stories(
         HackerNewsAPIClient(),
         session,
-        limit=20
     )
