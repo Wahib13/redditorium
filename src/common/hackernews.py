@@ -27,7 +27,7 @@ class HackerNewsItem(BaseModel):
     parent: Optional[int] = None
     poll: Optional[int] = None
     kids: Optional[List[int]] = None
-    url: Optional[HttpUrl] = None
+    url: Optional[Union[HttpUrl, str]] = None
     score: Optional[int] = None
     title: Optional[str] = None
     parts: Optional[List[int]] = None

@@ -11,5 +11,5 @@ class HackerNewsAPIInterface(ABC):
         pass
 
     @abstractmethod
-    def fetch_story(self, story_id) -> HackerNewsItem:
+    def fetch_story(self, story_id) -> HackerNewsItem | None:
         pass
