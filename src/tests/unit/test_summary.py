@@ -2,7 +2,7 @@ import datetime
 
 from db.models import Article, DailyTrendSummary, Topic
 from summary.main import generate_article_summaries, generate_daily_summary
-from tests.conftest import FakeLLM, SAMPLE_ARTICLE_TEXT
+from tests.conftest import FakeLLM, SAMPLE_ARTICLE_TEXT, SAMPLE_ARTICLE_TEXT_SHORT
 
 
 def test_generate_summary_for_articles(db_session):
@@ -259,21 +259,21 @@ def test_generate_daily_summary_no_articles_with_summaries(db_session_with_dated
 
 
 def test_generate_article_summaries_skips_short_articles(db_session, fake_source):
-    """Test that articles with 5 or fewer lines are skipped during summarization"""
+    """Test that articles with fewer than MIN_ARTICLE_LENGTH words or fewer are skipped during summarization."""
     # Get the source from the database (it was added via fixtures)
     source = db_session.query(Article).first().source
 
-    # Add a short article (5 lines or fewer)
+    # Add a short article
     short_article = Article(
         title="Short Article",
         url="https://example.com/short",
         source_topic="technology",
         source=source,
-        text="Line 1\nLine 2\nLine 3\nLine 4\nLine 5"  # Exactly 5 lines
+        text=SAMPLE_ARTICLE_TEXT_SHORT
     )
     db_session.add(short_article)
 
-    # Add a long article (more than 5 lines)
+    # Add a long article
     long_article = Article(
         title="Long Article",
         url="https://example.com/long",

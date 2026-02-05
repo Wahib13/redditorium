@@ -8,17 +8,21 @@ from starlette.testclient import TestClient
 
 from adapters.interfaces import LLMClient
 from api.main import app
+from config import settings
 from db.connection import get_session_dependency, Base
 from db.initialise import initialise_database
 from db.models import Article as ArticleDB, Feed, FeedType, SourceName, Source, Topic, DailyTrendSummary
 
-# Article text with more than 5 lines for summary generation tests
+# Article text with more than MIN_ARTICLE_WORD_COUNT words for summary generation tests
 SAMPLE_ARTICLE_TEXT = """This is the first line of the article.
 This is the second line with more content.
 The third line provides additional context.
 Fourth line continues the narrative.
 Fifth line adds more details.
-Sixth line ensures we have enough content for summarization."""
+Sixth line ensures we have enough content for summarization.""" + " extra words " * settings.MIN_ARTICLE_WORD_COUNT
+
+# Article text with fewer than MIN_ARTICLE_WORD_COUNT
+SAMPLE_ARTICLE_TEXT_SHORT = "word " * (settings.MIN_ARTICLE_WORD_COUNT - 1)
 
 
 @pytest.fixture
