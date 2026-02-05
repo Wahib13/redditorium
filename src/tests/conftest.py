@@ -8,7 +8,7 @@ from starlette.testclient import TestClient
 
 from adapters.interfaces import LLMClient
 from api.main import app
-from db.connection import get_session_dependency
+from db.connection import get_session_dependency, Base
 from db.initialise import initialise_database
 from db.models import Article as ArticleDB, Feed, FeedType, SourceName, Source, Topic, DailyTrendSummary
 
@@ -127,13 +127,14 @@ def fake_articles_with_dates(fake_topics, fake_source):
 
 def make_test_db_session(fake_source, fake_topics, fake_articles):
     engine = create_engine("sqlite:///:memory:", echo=False)
+    Base.metadata.create_all(engine)
     connection = engine.connect()
     transaction = connection.begin()
 
     session_maker_instance = sessionmaker(bind=connection)
     session: Session = session_maker_instance()
 
-    initialise_database(engine, session, [*fake_topics, fake_source, *fake_articles])
+    initialise_database(session, [*fake_topics, fake_source, *fake_articles])
 
     try:
         yield session
