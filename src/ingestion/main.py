@@ -22,7 +22,7 @@ def fetch_rss_entries(session):
                 article = ArticleDB(
                     url=url,
                     title=title,
-                    source_topic=feed.feed_type.value,
+                    source_topic=feed.topic.name,
                     source=source
                 )
                 articles_to_insert.append(article)

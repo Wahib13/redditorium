@@ -8,33 +8,20 @@ from enum import Enum
 from db.connection import Base
 
 
-class FeedType(Enum):
-    POLITICS = "politics"
-    TECHNOLOGY = "technology"
-    BUSINESS = "business"
-    HEALTH = "health"
-
-
 class Feed(Base):
     __tablename__ = 'feed'
     url = Column(String, primary_key=True)
-    feed_type = Column(
-        SAEnum(FeedType, native_enum=False),
-        nullable=False,
-    )
     source_id = Column(Integer, ForeignKey("source.id"), nullable=False)
     source = relationship("Source")
 
-
-class SourceName(Enum):
-    BBC = "BBC"
-    THE_GUARDIAN = "TheGuardian"
+    topic_id = Column(Integer, ForeignKey("topic.id"), nullable=False)
+    topic = relationship("Topic", back_populates="feeds")
 
 
 class Source(Base):
     __tablename__ = 'source'
     id = Column(Integer, primary_key=True)
-    name = Column(SAEnum(SourceName))
+    name = Column(String, unique=True, nullable=False)
 
     feeds = relationship("Feed", back_populates="source")
 
@@ -61,6 +48,7 @@ class Topic(Base):
     name = Column(Text, nullable=True)
 
     articles = relationship("Article", secondary=article_topic, back_populates="topics")
+    feeds = relationship("Feed", back_populates="topic")
 
 
 class Article(Base):

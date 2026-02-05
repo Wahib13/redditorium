@@ -28,7 +28,7 @@ def test_topic_inference_is_idempotent(db_session):
     source = db_session.query(Source).first()
     article = Article(
         title="AI again",
-        source_topic="technology",
+        source_topic="TECHNOLOGY",
         source=source
     )
     db_session.add(article)
@@ -43,19 +43,19 @@ def test_topic_inference_is_idempotent(db_session):
     db_session.refresh(article)
 
     assert len(article.topics) == 1
-    assert article.topics[0].name == "technology"
+    assert article.topics[0].name == "TECHNOLOGY"
 
     # also ensure only one Topic exists
     assert db_session.query(Topic).count() == prev_count
 
 
 def test_existing_topic_is_reused(db_session):
-    topic = db_session.query(Topic).filter_by(name="technology").first()
+    topic = db_session.query(Topic).filter_by(name="TECHNOLOGY").first()
 
     source = db_session.query(Source).first()
     article = Article(
         title="Reuse topic",
-        source_topic="technology",
+        source_topic="TECHNOLOGY",
         source=source
     )
     db_session.add(article)
