@@ -4,6 +4,7 @@ import logging
 from sqlalchemy.orm import Session
 
 from adapters.interfaces import LLMClient
+from config import settings
 from db.models import Article, Topic, DailyTrendSummary
 
 logger = logging.getLogger(__name__)
@@ -86,10 +87,8 @@ def generate_article_summaries(
     for i, article in enumerate(articles):
         logger.info(f"summarising article {i + 1}/{len(articles)}. id: {article.id}, title: {article.title}")
 
-        # Skip articles with 5 lines or fewer
-        line_count = len(article.text.splitlines()) if article.text else 0
-        if line_count <= 5:
-            logger.info(f"Skipping article {article.id}: only {line_count} lines (minimum 6 required)")
+        if len(article.text.split()) <= settings.MIN_ARTICLE_WORD_COUNT:
+            logger.info(f"Skipping article {article.id}: only {len(article.text.split)} words (minimum {settings.MIN_ARTICLE_WORD_COUNT} required)")
             continue
 
         article.summary = generate_summary(
