@@ -87,8 +87,12 @@ def generate_article_summaries(
     for i, article in enumerate(articles):
         logger.info(f"summarising article {i + 1}/{len(articles)}. id: {article.id}, title: {article.title}")
 
-        if len(article.text.split()) <= settings.MIN_ARTICLE_WORD_COUNT:
-            logger.info(f"Skipping article {article.id}: only {len(article.text.split)} words (minimum {settings.MIN_ARTICLE_WORD_COUNT} required)")
+        if not article.text:
+            logger.info(f"Skipping article {article.id}: no text found")
+            continue
+
+        if article.text and len(article.text.split()) <= settings.MIN_ARTICLE_WORD_COUNT:
+            logger.info(f"Skipping article {article.id}: only {len(article.text.split())} words (minimum {settings.MIN_ARTICLE_WORD_COUNT} required)")
             continue
 
         article.summary = generate_summary(
