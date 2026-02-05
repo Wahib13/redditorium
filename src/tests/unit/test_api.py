@@ -141,7 +141,7 @@ def test_get_daily_summaries_filter_by_topic(test_client_with_summaries):
     assert len(summaries) == 2
     for summary in summaries:
         assert summary["topic"]["id"] == 1
-        assert summary["topic"]["name"] == "technology"
+        assert summary["topic"]["name"] == "TECHNOLOGY"
 
 
 def test_get_daily_summaries_no_results(test_client_with_summaries):
@@ -163,7 +163,7 @@ def test_get_daily_summaries_includes_articles(test_client_with_summaries):
     summaries = response.json()
 
     # Find today's technology summary (should be first due to desc ordering)
-    tech_summaries = [s for s in summaries if s["topic"]["name"] == "technology"]
+    tech_summaries = [s for s in summaries if s["topic"]["name"] == "TECHNOLOGY"]
     # There are 2 tech summaries (today and yesterday)
     assert len(tech_summaries) == 2
 

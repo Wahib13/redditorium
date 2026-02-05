@@ -1,5 +1,5 @@
-from typing import List, Dict
 import datetime
+from typing import List, Dict
 
 import pytest
 from sqlalchemy import create_engine
@@ -11,7 +11,7 @@ from api.main import app
 from config import settings
 from db.connection import get_session_dependency, Base
 from db.initialise import initialise_database
-from db.models import Article as ArticleDB, Feed, FeedType, SourceName, Source, Topic, DailyTrendSummary
+from db.models import Article as ArticleDB, Feed, Source, Topic, DailyTrendSummary
 
 # Article text with more than MIN_ARTICLE_WORD_COUNT words for summary generation tests
 SAMPLE_ARTICLE_TEXT = """This is the first line of the article.
@@ -26,10 +26,10 @@ SAMPLE_ARTICLE_TEXT_SHORT = "word " * (settings.MIN_ARTICLE_WORD_COUNT - 1)
 
 
 @pytest.fixture
-def fake_source():
-    source_bbc = Source(name=SourceName.BBC)
+def fake_source(fake_topics):
+    source_bbc = Source(name="BBC")
     source_bbc.feeds = [
-        Feed(url="https://feed.test", feed_type=FeedType.POLITICS),
+        Feed(url="https://feed.test", topic=fake_topics[1]),
     ]
     return source_bbc
 
@@ -37,10 +37,10 @@ def fake_source():
 @pytest.fixture
 def fake_topics():
     return [
-        Topic(name=FeedType.TECHNOLOGY.value),
-        Topic(name=FeedType.POLITICS.value),
-        Topic(name=FeedType.BUSINESS.value),
-        Topic(name=FeedType.HEALTH.value),
+        Topic(name="TECHNOLOGY"),
+        Topic(name="POLITICS"),
+        Topic(name="BUSINESS"),
+        Topic(name="HEALTH"),
     ]
 
 
@@ -53,7 +53,7 @@ def fake_articles(fake_topics, fake_source):
             url="https://example.com/article1",
             topics=[fake_topics[0]],
             source=fake_source,
-            source_topic=FeedType.TECHNOLOGY.value,
+            source_topic="TECHNOLOGY",
             text=SAMPLE_ARTICLE_TEXT
         ),
         ArticleDB(
@@ -61,7 +61,7 @@ def fake_articles(fake_topics, fake_source):
             url="https://example.com/article2",
             topics=[fake_topics[1]],
             source=fake_source,
-            source_topic=FeedType.POLITICS.value,
+            source_topic="POLITICS",
             text=SAMPLE_ARTICLE_TEXT
         ),
     ]
@@ -83,7 +83,7 @@ def fake_articles_with_dates(fake_topics, fake_source):
             url="https://example.com/today1",
             topics=[fake_topics[0]],
             source=fake_source,
-            source_topic=FeedType.TECHNOLOGY.value,
+            source_topic="TECHNOLOGY",
             text=SAMPLE_ARTICLE_TEXT,
             created=datetime.datetime.combine(today, datetime.time(10, 0, 0))
         ),
@@ -92,7 +92,7 @@ def fake_articles_with_dates(fake_topics, fake_source):
             url="https://example.com/today2",
             topics=[fake_topics[0]],
             source=fake_source,
-            source_topic=FeedType.TECHNOLOGY.value,
+            source_topic="TECHNOLOGY",
             text=SAMPLE_ARTICLE_TEXT,
             created=datetime.datetime.combine(today, datetime.time(18, 30, 0))
         ),
@@ -102,7 +102,7 @@ def fake_articles_with_dates(fake_topics, fake_source):
             url="https://example.com/yesterday",
             topics=[fake_topics[1]],
             source=fake_source,
-            source_topic=FeedType.POLITICS.value,
+            source_topic="POLITICS",
             text=SAMPLE_ARTICLE_TEXT,
             created=datetime.datetime.combine(yesterday, datetime.time(10, 0, 0))
         ),
@@ -112,7 +112,7 @@ def fake_articles_with_dates(fake_topics, fake_source):
             url="https://example.com/twodays",
             topics=[fake_topics[2]],
             source=fake_source,
-            source_topic=FeedType.BUSINESS.value,
+            source_topic="BUSINESS",
             text=SAMPLE_ARTICLE_TEXT,
             created=datetime.datetime.combine(two_days_ago, datetime.time(15, 30, 0))
         ),
@@ -122,7 +122,7 @@ def fake_articles_with_dates(fake_topics, fake_source):
             url="https://example.com/week",
             topics=[fake_topics[3]],
             source=fake_source,
-            source_topic=FeedType.HEALTH.value,
+            source_topic="HEALTH",
             text=SAMPLE_ARTICLE_TEXT,
             created=datetime.datetime.combine(week_ago, datetime.time(9, 0, 0))
         ),
@@ -183,7 +183,7 @@ def fake_articles_with_summaries(fake_topics, fake_source):
             url="https://example.com/ai-breakthrough",
             topics=[fake_topics[0]],  # Technology
             source=fake_source,
-            source_topic=FeedType.TECHNOLOGY.value,
+            source_topic="TECHNOLOGY",
             summary="Scientists achieve major AI breakthrough.",
             created=datetime.datetime.combine(today, datetime.time(9, 0, 0))
         ),
@@ -192,7 +192,7 @@ def fake_articles_with_summaries(fake_topics, fake_source):
             url="https://example.com/new-lang",
             topics=[fake_topics[0]],  # Technology
             source=fake_source,
-            source_topic=FeedType.TECHNOLOGY.value,
+            source_topic="TECHNOLOGY",
             summary="A new programming language is released.",
             created=datetime.datetime.combine(today, datetime.time(14, 0, 0))
         ),
@@ -202,7 +202,7 @@ def fake_articles_with_summaries(fake_topics, fake_source):
             url="https://example.com/policy",
             topics=[fake_topics[1]],  # Politics
             source=fake_source,
-            source_topic=FeedType.POLITICS.value,
+            source_topic="POLITICS",
             summary="Government announces major policy shift.",
             created=datetime.datetime.combine(today, datetime.time(11, 0, 0))
         ),
@@ -212,7 +212,7 @@ def fake_articles_with_summaries(fake_topics, fake_source):
             url="https://example.com/yesterday-tech",
             topics=[fake_topics[0]],  # Technology
             source=fake_source,
-            source_topic=FeedType.TECHNOLOGY.value,
+            source_topic="TECHNOLOGY",
             summary="Tech news from yesterday.",
             created=datetime.datetime.combine(yesterday, datetime.time(10, 0, 0))
         ),
@@ -221,7 +221,7 @@ def fake_articles_with_summaries(fake_topics, fake_source):
             url="https://example.com/yesterday-business",
             topics=[fake_topics[2]],  # Business
             source=fake_source,
-            source_topic=FeedType.BUSINESS.value,
+            source_topic="BUSINESS",
             summary="Business report from yesterday.",
             created=datetime.datetime.combine(yesterday, datetime.time(15, 0, 0))
         ),

@@ -1,6 +1,6 @@
 import feedparser
 
-from db.models import Article, FeedType
+from db.models import Article
 from ingestion.main import fetch_rss_entries
 from tests.conftest import FakeFeedData
 
@@ -30,14 +30,14 @@ def test_new_articles(db_session, fake_source, monkeypatch):
 
     for article in articles:
         assert article.source == fake_source
-        assert article.source_topic == FeedType.POLITICS.value
+        assert article.source_topic == "POLITICS"
 
 
 def test_new_articles_skips_duplicates(db_session, fake_source, monkeypatch):
     existing = Article(
         url="https://example.com/a1",
         title="Existing",
-        source_topic=FeedType.TECHNOLOGY.value,
+        source_topic="TECHNOLOGY",
         source=fake_source,
     )
 
