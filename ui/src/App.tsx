@@ -1,10 +1,17 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { DailySummaryCard } from './components/DailySummaryCard';
+import { DayCycler } from './components/DayCycler';
+import { Pagination } from './components/Pagination';
 import { useDailySummaries } from './hooks/daily-summaries';
 import type { DailySummary } from './data-model/daily-summary';
 import './App.css';
 
+const PAGE_SIZE = 20;
+
 function App() {
+  const [dateIndex, setDateIndex] = useState(0);
+  const [page, setPage] = useState(0);
+
   const { data: dailySummaries, isLoading, error } = useDailySummaries();
 
   const formatDate = (dateString: string) => {
@@ -52,6 +59,21 @@ function App() {
     }));
   }, [dailySummaries]);
 
+  const currentDateGroup = summariesByDate[dateIndex];
+  const allSummaries = currentDateGroup?.summaries ?? [];
+  const totalPages = Math.ceil(allSummaries.length / PAGE_SIZE);
+  const paginatedSummaries = allSummaries.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  const showPagination = totalPages > 1;
+
+  // Reset within-day page when switching dates
+  useEffect(() => {
+    setPage(0);
+  }, [dateIndex]);
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [dateIndex, page]);
+
   if (isLoading) {
     return (
       <div className="app-container">
@@ -87,18 +109,33 @@ function App() {
             <p>No summaries available.</p>
           </div>
         ) : (
-          <div className="date-sections">
-            {summariesByDate.map(({ date, formattedDate, summaries }) => (
-              <section key={date} className="date-section">
-                <h2 className="date-header">{formattedDate}</h2>
+          <>
+            <DayCycler
+              label={currentDateGroup.formattedDate}
+              hasNewer={dateIndex > 0}
+              hasOlder={dateIndex < summariesByDate.length - 1}
+              onNewer={() => setDateIndex(i => i - 1)}
+              onOlder={() => setDateIndex(i => i + 1)}
+            />
+            <div className="date-sections">
+              <section className="date-section">
                 <div className="summaries-grid">
-                  {summaries.map(summary => (
+                  {paginatedSummaries.map(summary => (
                     <DailySummaryCard key={summary.id} summary={summary} />
                   ))}
                 </div>
               </section>
-            ))}
-          </div>
+            </div>
+            {showPagination && (
+              <Pagination
+                page={page}
+                hasNextPage={page < totalPages - 1}
+                onPrevious={() => setPage(p => p - 1)}
+                onNext={() => setPage(p => p + 1)}
+                isLoading={false}
+              />
+            )}
+          </>
         )}
       </main>
     </div>
