@@ -1,0 +1,75 @@
+.day-cycler {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.day-cycler-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background-color: #f0f0f0;
+  color: #333;
+  border: none;
+  border-radius: 8px;
+  font-size: 22px;
+  font-weight: 300;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.day-cycler-button:hover:not(:disabled) {
+  background-color: #e0e0e0;
+  color: #1976d2;
+}
+
+.day-cycler-button:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.day-cycler-label {
+  font-size: 20px;
+  font-weight: 600;
+  color: #1a1a1a;
+  min-width: 200px;
+  text-align: center;
+}
+
+@media (prefers-color-scheme: dark) {
+  .day-cycler-button {
+    background-color: #2a2a2a;
+    color: #9ca3af;
+  }
+
+  .day-cycler-button:hover:not(:disabled) {
+    background-color: #3a3a3a;
+    color: #90caf9;
+  }
+
+  .day-cycler-label {
+    color: #5d5d5d;
+  }
+}
+
+@media (max-width: 768px) {
+  .day-cycler {
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .day-cycler-button {
+    width: 32px;
+    height: 32px;
+    font-size: 20px;
+  }
+
+  .day-cycler-label {
+    font-size: 18px;
+    min-width: 160px;
+  }
+}
