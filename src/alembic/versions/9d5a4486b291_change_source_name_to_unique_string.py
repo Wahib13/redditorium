@@ -28,9 +28,13 @@ def upgrade() -> None:
                        nullable=False)
             batch_op.create_unique_constraint('uq_source_name', ['name'])
     else:
-        op.alter_column('source', 'name',
-                   existing_type=sa.VARCHAR(length=12),
-                   nullable=False)
+        op.alter_column(
+            "source",
+            "name",
+            type_=sa.String(),
+            postgresql_using="name::text",
+            nullable=False
+        )
         op.create_unique_constraint('uq_source_name', 'source', ['name'])
 
 
