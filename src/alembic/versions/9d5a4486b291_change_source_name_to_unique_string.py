@@ -28,10 +28,20 @@ def upgrade() -> None:
                        nullable=False)
             batch_op.create_unique_constraint('uq_source_name', ['name'])
     else:
-        op.alter_column('source', 'name',
-                   existing_type=sa.VARCHAR(length=12),
-                   nullable=False)
-        op.create_unique_constraint('uq_source_name', 'source', ['name'])
+        op.alter_column(
+            "source",
+            "name",
+            existing_type=sa.Enum(name="sourcename"),
+            type_=sa.String(255),
+            postgresql_using="name::text",
+            nullable=False,
+        )
+
+        op.create_unique_constraint("uq_source_name", "source", ["name"])
+
+        # drop enum type after conversion
+        sa.Enum(name="sourcenameenum").drop(op.get_bind(), checkfirst=True)
+
 
 
 def downgrade() -> None:
@@ -44,7 +54,20 @@ def downgrade() -> None:
                        existing_type=sa.VARCHAR(length=12),
                        nullable=True)
     else:
-        op.drop_constraint('uq_source_name', 'source', type_='unique')
-        op.alter_column('source', 'name',
-                   existing_type=sa.VARCHAR(length=12),
-                   nullable=True)
+        # PostgreSQL
+        # recreate enum type
+        enum = sa.Enum('BBC', 'THE_GUARDIAN', name='sourcename')
+        enum.create(conn, checkfirst=True)
+
+        # drop unique constraint
+        op.drop_constraint("uq_source_name", "source", type_="unique")
+
+        # convert column back to enum
+        op.alter_column(
+            "source",
+            "name",
+            existing_type=sa.String(255),
+            type_=enum,
+            postgresql_using=f"name::{'sourcename'}",
+            nullable=True,
+        )
