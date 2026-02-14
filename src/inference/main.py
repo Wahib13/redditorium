@@ -5,7 +5,9 @@ def infer_topics(session):
     """
     Assign a Topic entity to each Article based on source_topic
     """
-    articles = session.query(Article).all()
+    articles = session.query(Article).filter(
+        ~Article.topics.any()
+    ).all()
 
     for article in articles:
         if not article.source_topic:
