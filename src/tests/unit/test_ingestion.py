@@ -29,8 +29,8 @@ def test_new_articles(db_session, fake_source, monkeypatch):
     }
 
     for article in articles:
-        assert article.source == fake_source
-        assert article.source_topic == "POLITICS"
+        assert article.feed == fake_source.feeds[0]
+        assert article.source_topic == "TECHNOLOGY"
 
 
 def test_new_articles_skips_duplicates(db_session, fake_source, monkeypatch):
@@ -38,7 +38,7 @@ def test_new_articles_skips_duplicates(db_session, fake_source, monkeypatch):
         url="https://example.com/a1",
         title="Existing",
         source_topic="TECHNOLOGY",
-        source=fake_source,
+        feed=fake_source.feeds[0],
     )
 
     db_session.add(existing)

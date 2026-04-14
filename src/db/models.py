@@ -1,9 +1,7 @@
 import datetime
 
-from sqlalchemy import Column, Integer, DateTime, String, Text, JSON, ForeignKey, Date, Table
+from sqlalchemy import Column, Integer, DateTime, String, Text, Float, ForeignKey, Table
 from sqlalchemy.orm import relationship
-from sqlalchemy import Enum as SAEnum
-from enum import Enum
 
 from db.connection import Base
 
@@ -25,16 +23,6 @@ class Source(Base):
 
     feeds = relationship("Feed", back_populates="source")
 
-    articles = relationship("Article", back_populates="source")
-
-
-article_topic = Table(
-    "article_topic",
-    Base.metadata,
-    Column("article_id", ForeignKey("article.id"), primary_key=True),
-    Column("topic_id", ForeignKey("topic.id"), primary_key=True),
-)
-
 
 class User(Base):
     __tablename__ = 'user'
@@ -47,8 +35,23 @@ class Topic(Base):
     id = Column(Integer, primary_key=True)
     name = Column(Text, nullable=True)
 
-    articles = relationship("Article", secondary=article_topic, back_populates="topics")
     feeds = relationship("Feed", back_populates="topic")
+
+
+article_keyword = Table(
+    'article_keyword', Base.metadata,
+    Column('article_id', Integer, ForeignKey('article.id'), primary_key=True),
+    Column('keyword_id', Integer, ForeignKey('keyword.id'), primary_key=True),
+    Column('score', Float, nullable=True),  # YAKE score; lower = more relevant
+)
+
+
+class Keyword(Base):
+    __tablename__ = 'keyword'
+    id = Column(Integer, primary_key=True)
+    text = Column(Text, unique=True, nullable=False)
+
+    articles = relationship("Article", secondary=article_keyword, back_populates="keywords")
 
 
 class Article(Base):
@@ -56,50 +59,16 @@ class Article(Base):
 
     id = Column(Integer, primary_key=True)
 
-    daily_trend_summary_id = Column(Integer, ForeignKey("daily_trend_summary.id"), nullable=True)
-    daily_trend_summary = relationship("DailyTrendSummary", back_populates="articles")
-
-    comments = relationship("Comment", cascade="all, delete", order_by="Comment.id")
-
     title = Column(String, nullable=True)
     url = Column(String, nullable=True)
 
-    source_id = Column(Integer, ForeignKey("source.id"), nullable=False)
-    source = relationship("Source")
+    feed_url = Column(String, ForeignKey("feed.url"), nullable=False)
+    feed = relationship("Feed")
 
-    source_topic = Column(String, nullable=True)  # the topic that the source website gave this article. nullable because some sources may not have it.
+    source_topic = Column(String, nullable=True)  # the topic that the source website gave this article
     author = Column(String, nullable=True)
     text = Column(Text, nullable=True)
     summary = Column(Text, nullable=True)
     created = Column(DateTime, nullable=False, default=datetime.datetime.utcnow)
 
-    topics = relationship("Topic", secondary=article_topic, back_populates="articles")
-
-
-class Comment(Base):
-    __tablename__ = 'comment'
-
-    id = Column(Integer, primary_key=True)
-
-    article_id = Column(Integer, ForeignKey("article.id"), nullable=False)
-    article = relationship("Article", back_populates="comments")
-
-    author = Column(String, nullable=True)
-    body = Column(Text, nullable=False)
-    score = Column(Integer, nullable=False)
-    created = Column(DateTime, nullable=False)
-    sentiment = Column(JSON, nullable=True)
-    topics = Column(JSON, nullable=True)
-
-
-class DailyTrendSummary(Base):
-    __tablename__ = 'daily_trend_summary'
-
-    id = Column(Integer, primary_key=True)
-
-    date = Column(Date, nullable=False)
-    summary = Column(Text, nullable=True)
-    topic_id = Column(Integer, ForeignKey("topic.id"), nullable=False)
-    topic = relationship("Topic")
-
-    articles = relationship("Article", back_populates="daily_trend_summary")
+    keywords = relationship("Keyword", secondary=article_keyword, back_populates="articles")

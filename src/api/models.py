@@ -1,30 +1,14 @@
-from datetime import date
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
-class TopicList(BaseModel):
+class Keyword(BaseModel):
     id: int
-    name: str
+    text: str
+    model_config = ConfigDict(from_attributes=True)
 
 
-class Topic(TopicList):
-    articles: list['Article']
-
-
-class ArticleList(BaseModel):
+class Article(BaseModel):
     id: int
     title: str
     url: str
-    topics: list[TopicList]
-
-
-class Article(ArticleList):
-    ...
-
-
-class DailyTrendSummaryList(BaseModel):
-    id: int
-    date: date
-    summary: str | None
-    topic: TopicList
-    articles: list[ArticleList]
+    model_config = ConfigDict(from_attributes=True)
