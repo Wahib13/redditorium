@@ -1,7 +1,7 @@
 import feedparser
 
 from db.models import Article
-from ingestion.main import fetch_rss_entries
+from pipeline.feed_data import fetch_rss_entries
 from tests.conftest import FakeFeedData
 
 

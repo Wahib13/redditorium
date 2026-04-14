@@ -1,0 +1,22 @@
+sources:
+  - name: BBC
+    feeds:
+      - url: https://feeds.bbci.co.uk/news/politics/rss.xml
+        topic: POLITICS
+      - url: https://feeds.bbci.co.uk/news/technology/rss.xml
+        topic: TECHNOLOGY
+      - url: https://feeds.bbci.co.uk/news/business/rss.xml
+        topic: BUSINESS
+      - url: https://feeds.bbci.co.uk/news/health/rss.xml
+        topic: HEALTH
+
+  - name: THE_GUARDIAN
+    feeds:
+      - url: https://www.theguardian.com/politics/rss
+        topic: POLITICS
+      - url: https://www.theguardian.com/technology/rss
+        topic: TECHNOLOGY
+      - url: https://www.theguardian.com/business/rss
+        topic: BUSINESS
+      - url: https://www.theguardian.com/society/health/rss
+        topic: HEALTH

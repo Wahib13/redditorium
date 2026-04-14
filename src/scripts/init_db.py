@@ -1,31 +1,28 @@
+import yaml
+from pathlib import Path
+
 from db.connection import get_session
 from db.initialise import initialise_database
 from db.models import Source, Feed, Topic
 
+SEEDS_PATH = Path(__file__).parent.parent / "seeds.yaml"
+
 if __name__ == "__main__":
+    with open(SEEDS_PATH) as f:
+        seeds = yaml.safe_load(f)
+
+    # Derive unique topics from feed definitions
+    topic_names = {feed["topic"] for source in seeds["sources"] for feed in source["feeds"]}
+    topics = {name: Topic(name=name) for name in topic_names}
+
+    sources = []
+    for source_data in seeds["sources"]:
+        source = Source(name=source_data["name"])
+        source.feeds = [
+            Feed(url=feed["url"], topic=topics[feed["topic"]])
+            for feed in source_data["feeds"]
+        ]
+        sources.append(source)
+
     with get_session() as session:
-        source_bbc = Source(name="BBC")
-        source_the_guardian = Source(name="THE_GUARDIAN")
-
-        topic_politics = Topic(name="POLITICS")
-        topic_technology = Topic(name="TECHNOLOGY")
-        topic_business = Topic(name="BUSINESS")
-        topic_health = Topic(name="HEALTH")
-
-        default_topics = [
-            topic_politics, topic_technology, topic_business, topic_health
-        ]
-
-        source_bbc.feeds = [
-            Feed(url="https://feeds.bbci.co.uk/news/politics/rss.xml", topic=topic_politics),
-            Feed(url="https://feeds.bbci.co.uk/news/technology/rss.xml", topic=topic_technology),
-            Feed(url="https://feeds.bbci.co.uk/news/business/rss.xml", topic=topic_business),
-            Feed(url="https://feeds.bbci.co.uk/news/health/rss.xml", topic=topic_health)
-        ]
-        source_the_guardian.feeds = [
-            Feed(url="https://www.theguardian.com/politics/rss", topic=topic_politics),
-            Feed(url="https://www.theguardian.com/technology/rss", topic=topic_technology),
-            Feed(url="https://www.theguardian.com/business/rss", topic=topic_business),
-            Feed(url="https://www.theguardian.com/society/health/rss", topic=topic_health)
-        ]
-        initialise_database(session, [source_bbc, source_the_guardian, *default_topics])
+        initialise_database(session, [*topics.values(), *sources])

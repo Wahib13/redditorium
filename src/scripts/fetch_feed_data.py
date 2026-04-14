@@ -1,6 +1,6 @@
 import config
 from db.connection import get_session
-from ingestion.main import save_articles, fetch_rss_entries
+from pipeline.feed_data import fetch_rss_entries, save_articles
 
 config.setup_logging()
 
