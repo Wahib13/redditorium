@@ -1,6 +1,6 @@
 import datetime
 
-from sqlalchemy import Column, Integer, DateTime, String, Text, Float, ForeignKey, Table
+from sqlalchemy import Column, Integer, DateTime, String, Text, Float, Boolean, ForeignKey, Table
 from sqlalchemy.orm import relationship
 
 from db.connection import Base
@@ -50,6 +50,7 @@ class Keyword(Base):
     __tablename__ = 'keyword'
     id = Column(Integer, primary_key=True)
     text = Column(Text, unique=True, nullable=False)
+    blocked = Column(Boolean, default=False, nullable=False)
 
     articles = relationship("Article", secondary=article_keyword, back_populates="keywords")
 

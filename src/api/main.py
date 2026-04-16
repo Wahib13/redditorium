@@ -49,6 +49,19 @@ def get_keyword(
     return keyword
 
 
+@app.post("/keyword/{keyword_id}/block")
+def block_keyword(
+        keyword_id: int,
+        session=Depends(get_session_dependency)
+):
+    keyword = session.query(KeywordDB).filter_by(id=keyword_id).first()
+    if keyword is None:
+        raise HTTPException(status_code=404, detail="Keyword not found")
+    keyword.blocked = True
+    session.commit()
+    return {"id": keyword_id, "blocked": True}
+
+
 @app.get("/article/{article_id}/")
 def get_article(
         article_id: int,

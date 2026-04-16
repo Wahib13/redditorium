@@ -21,6 +21,14 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     """Upgrade schema."""
     op.create_table(
+        'keyword',
+        sa.Column('id', sa.Integer(), nullable=False),
+        sa.Column('text', sa.Text(), nullable=False),
+        sa.PrimaryKeyConstraint('id'),
+        sa.UniqueConstraint('text'),
+    )
+
+    op.create_table(
         'article_keyword',
         sa.Column('article_id', sa.Integer(), nullable=False),
         sa.Column('keyword_id', sa.Integer(), nullable=False),
@@ -52,3 +60,4 @@ def downgrade() -> None:
         batch_op.add_column(sa.Column('daily_trend_summary_id', sa.Integer(), nullable=True))
 
     op.drop_table('article_keyword')
+    op.drop_table('keyword')
