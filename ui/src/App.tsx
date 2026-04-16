@@ -1,95 +1,65 @@
-import { useEffect, useMemo, useState } from 'react';
-import { DailySummaryCard } from './components/DailySummaryCard';
+import { useEffect, useState } from 'react';
+import { KeywordCard } from './components/KeywordCard';
+import { OtherKeywordsSection } from './components/OtherKeywordsSection';
 import { DayCycler } from './components/DayCycler';
-import { Pagination } from './components/Pagination';
-import { useDailySummaries } from './hooks/daily-summaries';
-import type { DailySummary } from './data-model/daily-summary';
+import { useKeywords } from './hooks/useKeywords';
+import { useKeywordUpdates } from './hooks/useKeywordUpdates';
 import './App.css';
 
-const PAGE_SIZE = 20;
+function toLocalISODate(d: Date): string {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function formatDateLabel(dateStr: string, todayStr: string): string {
+  if (dateStr === todayStr) return 'Today';
+  const d = new Date(dateStr + 'T00:00:00');
+  return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+}
+
+const today = toLocalISODate(new Date());
 
 function App() {
-  const [dateIndex, setDateIndex] = useState(0);
-  const [page, setPage] = useState(0);
+  const [selectedDate, setSelectedDate] = useState(today);
+  const isToday = selectedDate === today;
 
-  const { data: dailySummaries, isLoading, error } = useDailySummaries();
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const summaryDate = new Date(date);
-    summaryDate.setHours(0, 0, 0, 0);
-
-    if (summaryDate.getTime() === today.getTime()) {
-      return 'Today';
-    }
-
-    return date.toLocaleDateString('en-US', {
-      weekday: 'long',
-      month: 'long',
-      day: 'numeric'
-    });
-  };
-
-  const summariesByDate = useMemo(() => {
-    if (!dailySummaries || dailySummaries.length === 0) {
-      return [];
-    }
-
-    // Group summaries by date
-    const grouped = dailySummaries.reduce((acc, summary) => {
-      const dateKey = summary.date;
-      if (!acc[dateKey]) {
-        acc[dateKey] = [];
-      }
-      acc[dateKey].push(summary);
-      return acc;
-    }, {} as Record<string, DailySummary[]>);
-
-    // Convert to array and sort by date (most recent first)
-    const sortedDates = Object.keys(grouped).sort((a, b) => {
-      return new Date(b).getTime() - new Date(a).getTime();
-    });
-
-    return sortedDates.map(date => ({
-      date,
-      formattedDate: formatDate(date),
-      summaries: grouped[date]
-    }));
-  }, [dailySummaries]);
-
-  const currentDateGroup = summariesByDate[dateIndex];
-  const allSummaries = currentDateGroup?.summaries ?? [];
-  const totalPages = Math.ceil(allSummaries.length / PAGE_SIZE);
-  const paginatedSummaries = allSummaries.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
-  const showPagination = totalPages > 1;
-
-  // Reset within-day page when switching dates
-  useEffect(() => {
-    setPage(0);
-  }, [dateIndex]);
+  const { data: keywords, isLoading, isError } = useKeywords(selectedDate);
+  useKeywordUpdates(selectedDate);
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [dateIndex, page]);
+  }, [selectedDate]);
+
+  function goOlder() {
+    const d = new Date(selectedDate + 'T00:00:00');
+    d.setDate(d.getDate() - 1);
+    setSelectedDate(toLocalISODate(d));
+  }
+
+  function goNewer() {
+    const d = new Date(selectedDate + 'T00:00:00');
+    d.setDate(d.getDate() + 1);
+    setSelectedDate(toLocalISODate(d));
+  }
 
   if (isLoading) {
     return (
       <div className="app-container">
         <div className="loading-container">
           <div className="loading-spinner"></div>
-          <p className="loading-text">Loading news...</p>
+          <p className="loading-text">Loading...</p>
         </div>
       </div>
     );
   }
 
-  if (error) {
+  if (isError) {
     return (
       <div className="app-container">
         <div className="error-container">
-          <h2>Failed to load news</h2>
+          <h2>Failed to load keywords</h2>
           <p>Please try again later.</p>
         </div>
       </div>
@@ -99,47 +69,40 @@ function App() {
   return (
     <div className="app-container">
       <header className="app-header">
-        <h1 className="app-title">Trend Engine</h1>
-        <p className="app-subtitle">News Summary</p>
+        <div className="app-title-row">
+          <h1 className="app-title">Trend Engine</h1>
+          {isToday && <span className="live-badge">live</span>}
+        </div>
       </header>
 
       <main className="app-main">
-        {summariesByDate.length === 0 ? (
+        <DayCycler
+          label={formatDateLabel(selectedDate, today)}
+          hasNewer={!isToday}
+          hasOlder={true}
+          onNewer={goNewer}
+          onOlder={goOlder}
+        />
+
+        {keywords && keywords.length === 0 ? (
           <div className="empty-state">
-            <p>No summaries available.</p>
+            <p>No keywords for this day.</p>
           </div>
-        ) : (
-          <>
-            <DayCycler
-              label={currentDateGroup.formattedDate}
-              hasNewer={dateIndex > 0}
-              hasOlder={dateIndex < summariesByDate.length - 1}
-              onNewer={() => setDateIndex(i => i - 1)}
-              onOlder={() => setDateIndex(i => i + 1)}
-            />
-            <div className="date-sections">
-              <section className="date-section">
-                <div className="summaries-grid">
-                  {paginatedSummaries.map(summary => (
-                    <DailySummaryCard key={summary.id} summary={summary} />
-                  ))}
-                </div>
-              </section>
+        ) : (() => {
+          const main = keywords?.filter((kw) => kw.articles.length >= 2) ?? [];
+          const other = keywords?.filter((kw) => kw.articles.length < 2) ?? [];
+          return (
+            <div className="keywords-grid">
+              {main.map((kw) => (
+                <KeywordCard key={kw.id} keyword={kw} />
+              ))}
+              <OtherKeywordsSection keywords={other} />
             </div>
-            {showPagination && (
-              <Pagination
-                page={page}
-                hasNextPage={page < totalPages - 1}
-                onPrevious={() => setPage(p => p - 1)}
-                onNext={() => setPage(p => p + 1)}
-                isLoading={false}
-              />
-            )}
-          </>
-        )}
+          );
+        })()}
       </main>
     </div>
   );
 }
 
-export default App
+export default App;

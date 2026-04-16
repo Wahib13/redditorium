@@ -59,7 +59,7 @@ def get_keywords(
     start = datetime.datetime(date.year, date.month, date.day)
     end = start + datetime.timedelta(days=1)
 
-    return (
+    keywords = (
         session.query(Keyword)
         .join(Keyword.articles)
         .filter(~Keyword.blocked)
@@ -67,6 +67,8 @@ def get_keywords(
         .options(contains_eager(Keyword.articles))
         .all()
     )
+    keywords.sort(key=lambda kw: len(kw.articles), reverse=True)
+    return keywords
 
 
 @app.post("/keyword/{keyword_id}/block")
