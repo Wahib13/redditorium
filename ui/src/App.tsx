@@ -94,7 +94,7 @@ function App() {
           return (
             <div className="keywords-grid">
               {main.map((kw) => (
-                <KeywordCard key={kw.id} keyword={kw} />
+                <KeywordCard key={kw.text} keyword={kw} />
               ))}
               <OtherKeywordsSection keywords={other} />
             </div>

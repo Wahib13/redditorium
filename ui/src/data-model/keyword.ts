@@ -5,7 +5,7 @@ export interface ArticleInKeyword {
 }
 
 export interface Keyword {
-  id: number;
+  id: number | null;
   text: string;
   articles: ArticleInKeyword[];
 }

@@ -22,7 +22,7 @@ class ArticleInKeyword(BaseModel):
 
 
 class KeywordWithArticles(BaseModel):
-    id: int
+    id: int | None
     text: str
     articles: list[ArticleInKeyword]
     model_config = ConfigDict(from_attributes=True)
@@ -30,3 +30,33 @@ class KeywordWithArticles(BaseModel):
 
 class ArticlesProcessedRequest(BaseModel):
     article_ids: list[int]
+
+
+class KeywordMappingCreate(BaseModel):
+    raw_keyword: str
+    canonical_keyword: str
+
+
+class KeywordMappingRead(BaseModel):
+    id: int
+    raw_keyword: str
+    canonical_keyword: str
+    user_id: int
+    model_config = ConfigDict(from_attributes=True)
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+
+
+class UserCreate(BaseModel):
+    email: str
+    password: str
+
+
+class UserRead(BaseModel):
+    id: int
+    email: str
+    admin: bool
+    model_config = ConfigDict(from_attributes=True)

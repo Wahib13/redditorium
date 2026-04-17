@@ -1,6 +1,6 @@
 import datetime
 
-from sqlalchemy import Column, Integer, DateTime, String, Text, Float, Boolean, ForeignKey, Table
+from sqlalchemy import Column, Integer, DateTime, String, Text, Float, Boolean, ForeignKey, Table, UniqueConstraint
 from sqlalchemy.orm import relationship
 
 from db.connection import Base
@@ -28,6 +28,8 @@ class User(Base):
     __tablename__ = 'user'
     id = Column(Integer, primary_key=True)
     email = Column(String, unique=True, nullable=False)
+    hashed_password = Column(String, nullable=False)
+    admin = Column(Boolean, default=False, nullable=False)
 
 
 class Topic(Base):
@@ -53,6 +55,19 @@ class Keyword(Base):
     blocked = Column(Boolean, default=False, nullable=False)
 
     articles = relationship("Article", secondary=article_keyword, back_populates="keywords")
+
+
+class KeywordMapping(Base):
+    __tablename__ = "keyword_mapping"
+
+    id = Column(Integer, primary_key=True)
+    raw_keyword = Column(Text, nullable=False, index=True)
+    canonical_keyword = Column(Text, nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("user.id"), nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("raw_keyword", "canonical_keyword", "user_id", name="uq_mapping_per_user"),
+    )
 
 
 class Article(Base):
