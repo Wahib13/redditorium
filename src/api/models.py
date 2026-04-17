@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
 
 
 class Keyword(BaseModel):
@@ -65,9 +65,19 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
 
 
+MIN_PASSWORD_LENGTH = 8
+
+
 class UserCreate(BaseModel):
     email: str
     password: str
+
+    @field_validator("password")
+    @classmethod
+    def password_min_length(cls, v: str) -> str:
+        if len(v) < MIN_PASSWORD_LENGTH:
+            raise ValueError(f"Password must be at least {MIN_PASSWORD_LENGTH} characters")
+        return v
 
 
 class UserRead(BaseModel):

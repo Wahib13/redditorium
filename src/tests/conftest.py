@@ -62,7 +62,7 @@ def fake_entries():
 
 
 def make_test_db_session(fake_source, fake_articles):
-    engine = create_engine("sqlite:///:memory:", echo=False)
+    engine = create_engine("sqlite:///:memory:", echo=False, connect_args={"check_same_thread": False})
     Base.metadata.create_all(engine)
     connection = engine.connect()
     transaction = connection.begin()
@@ -90,14 +90,19 @@ def db_session(
 
 
 @pytest.fixture
-def override_get_session(
-        fake_source,
-        fake_articles
-):
-    def _override():
-        yield from make_test_db_session(fake_source, fake_articles)
+def override_get_session(fake_source, fake_articles):
+    gen = make_test_db_session(fake_source, fake_articles)
+    session = next(gen)
 
-    return _override
+    def _override():
+        yield session
+
+    yield _override
+
+    try:
+        next(gen)
+    except StopIteration:
+        pass
 
 
 class FakeFeedData:
