@@ -70,6 +70,20 @@ class KeywordMapping(Base):
     )
 
 
+class UserKeywordRule(Base):
+    __tablename__ = "user_keyword_rule"
+
+    id = Column(Integer, primary_key=True)
+    pattern = Column(Text, nullable=False)
+    keyword = Column(Text, nullable=False)
+    user_id = Column(Integer, ForeignKey("user.id"), nullable=False)
+    case_sensitive = Column(Boolean, default=False, nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("pattern", "user_id", name="uq_rule_per_user"),
+    )
+
+
 class Article(Base):
     __tablename__ = 'article'
 

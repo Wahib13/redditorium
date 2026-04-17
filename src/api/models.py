@@ -45,6 +45,21 @@ class KeywordMappingRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class UserKeywordRuleCreate(BaseModel):
+    pattern: str
+    keyword: str
+    case_sensitive: bool = False
+
+
+class UserKeywordRuleRead(BaseModel):
+    id: int
+    pattern: str
+    keyword: str
+    user_id: int
+    case_sensitive: bool
+    model_config = ConfigDict(from_attributes=True)
+
+
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
