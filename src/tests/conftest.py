@@ -8,7 +8,7 @@ from starlette.testclient import TestClient
 from api.main import app
 from db.connection import get_session_dependency, Base
 from db.initialise import initialise_database
-from db.models import Article as ArticleDB, Feed, Source, Topic, Keyword
+from db.models import Article, Feed, Source, Topic, Keyword
 
 SAMPLE_ARTICLE_TEXT = "sample text"
 
@@ -35,16 +35,15 @@ def fake_keywords():
 
 @pytest.fixture
 def fake_articles(fake_source):
-    """Articles with default timestamps (now)"""
     return [
-        ArticleDB(
+        Article(
             title="AI Lives Rent Free In My Head",
             url="https://example.com/article1",
             feed=fake_source.feeds[0],
             source_topic="TECHNOLOGY",
             text=SAMPLE_ARTICLE_TEXT
         ),
-        ArticleDB(
+        Article(
             title="Python is cool, but my favorite language is Sarcasm",
             url="https://example.com/article2",
             feed=fake_source.feeds[0],
@@ -55,59 +54,10 @@ def fake_articles(fake_source):
 
 
 @pytest.fixture
-def fake_articles_with_dates(fake_source):
-    """Articles with specific creation dates for testing date filtering"""
-    now = datetime.datetime.now()
-    today = now.date()
-    yesterday = today - datetime.timedelta(days=1)
-    two_days_ago = today - datetime.timedelta(days=2)
-    week_ago = today - datetime.timedelta(days=7)
-
+def fake_entries():
     return [
-        # Articles from today (within past 24 hours) - use explicit times on today's date
-        ArticleDB(
-            title="Breaking News Today Morning",
-            url="https://example.com/today1",
-            feed=fake_source.feeds[0],
-            source_topic="TECHNOLOGY",
-            text=SAMPLE_ARTICLE_TEXT,
-            created=datetime.datetime.combine(today, datetime.time(10, 0, 0))
-        ),
-        ArticleDB(
-            title="Latest Tech Update",
-            url="https://example.com/today2",
-            feed=fake_source.feeds[0],
-            source_topic="TECHNOLOGY",
-            text=SAMPLE_ARTICLE_TEXT,
-            created=datetime.datetime.combine(today, datetime.time(18, 30, 0))
-        ),
-        # Article from yesterday
-        ArticleDB(
-            title="Yesterday's Big Story",
-            url="https://example.com/yesterday",
-            feed=fake_source.feeds[0],
-            source_topic="POLITICS",
-            text=SAMPLE_ARTICLE_TEXT,
-            created=datetime.datetime.combine(yesterday, datetime.time(10, 0, 0))
-        ),
-        # Article from 2 days ago
-        ArticleDB(
-            title="Old News from Two Days Ago",
-            url="https://example.com/twodays",
-            feed=fake_source.feeds[0],
-            source_topic="BUSINESS",
-            text=SAMPLE_ARTICLE_TEXT,
-            created=datetime.datetime.combine(two_days_ago, datetime.time(15, 30, 0))
-        ),
-        # Article from a week ago
-        ArticleDB(
-            title="Ancient Article from Last Week",
-            url="https://example.com/week",
-            feed=fake_source.feeds[0],
-            source_topic="HEALTH",
-            text=SAMPLE_ARTICLE_TEXT,
-            created=datetime.datetime.combine(week_ago, datetime.time(9, 0, 0))
-        ),
+        {"link": "https://example.com/a", "title": "Article A"},
+        {"link": "https://example.com/b", "title": "Article B"},
     ]
 
 
@@ -136,16 +86,6 @@ def db_session(
         fake_articles,
 ):
     for session in make_test_db_session(fake_source, fake_articles):
-        yield session
-
-
-@pytest.fixture
-def db_session_with_dated_articles(
-        fake_source,
-        fake_articles_with_dates,
-):
-    """Database session with articles that have specific creation dates"""
-    for session in make_test_db_session(fake_source, fake_articles_with_dates):
         yield session
 
 
