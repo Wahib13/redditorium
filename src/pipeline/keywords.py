@@ -11,6 +11,38 @@ from db.models import Article, Keyword, article_keyword
 logger = logging.getLogger(__name__)
 
 
+def link_keywords(
+        session: Session,
+        article: Article,
+        raw_keywords: list[tuple[str, float]],
+) -> int:
+    """Apply pre-extracted keywords to an article. Returns number of keywords linked."""
+    linked = 0
+    for kw_text, score in raw_keywords:
+        normalized = kw_text.lower().strip()
+
+        existing = session.query(Keyword).filter_by(text=normalized).first()
+        if existing and existing.blocked:
+            continue
+
+        keyword = existing or Keyword(text=normalized)
+        if not existing:
+            session.add(keyword)
+            session.flush()
+
+        session.execute(
+            article_keyword.insert().values(
+                article_id=article.id,
+                keyword_id=keyword.id,
+                score=score,
+            )
+        )
+        linked += 1
+
+    session.commit()
+    return linked
+
+
 def extract_keywords_for_article(
         article: Article,
         session: Session,
@@ -26,36 +58,7 @@ def extract_keywords_for_article(
         top=10,
         stopwords=nltk_stopwords,
     )
-
-    raw_keywords = extractor.extract_keywords(article.title)
-    linked = 0
-
-    for kw_text, score in raw_keywords:
-        normalized = kw_text.lower().strip()
-
-        # skip if globally blocked in DB
-        existing = session.query(Keyword).filter_by(text=normalized).first()
-        if existing and existing.blocked:
-            continue
-
-        # upsert keyword
-        keyword = existing or Keyword(text=normalized)
-        if not existing:
-            session.add(keyword)
-            session.flush()
-
-        # link to article with YAKE score
-        session.execute(
-            article_keyword.insert().values(
-                article_id=article.id,
-                keyword_id=keyword.id,
-                score=score,
-            )
-        )
-        linked += 1
-
-    session.commit()
-    return linked
+    return link_keywords(session, article, extractor.extract_keywords(article.title))
 
 
 def extract_keywords(session: Session) -> None:
