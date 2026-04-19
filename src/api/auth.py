@@ -1,11 +1,13 @@
 from datetime import datetime, timedelta, timezone
 
 import bcrypt
-from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+import api.models as schema
 import config
 from db.connection import get_session_dependency
 from db.models import User
@@ -71,3 +73,42 @@ def get_current_user_optional(
         return _decode_token(token, session)
     except HTTPException:
         return None
+
+
+# --- Router ---
+
+router = APIRouter(prefix="/auth")
+
+
+@router.post("/register", status_code=201)
+def register(
+        body: schema.UserCreate,
+        session=Depends(get_session_dependency),
+) -> schema.UserRead:
+    if session.query(User).filter_by(email=body.email).first():
+        raise HTTPException(status_code=400, detail="Email already registered")
+    user = User(email=body.email, hashed_password=hash_password(body.password))
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+    return user
+
+
+@router.post("/login")
+def login(
+        form: OAuth2PasswordRequestForm = Depends(),
+        session=Depends(get_session_dependency),
+) -> schema.TokenResponse:
+    user = session.query(User).filter_by(email=form.username).first()
+    if not user or not verify_password(form.password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return schema.TokenResponse(access_token=create_access_token(user.id))
+
+
+@router.get("/me")
+def me(current_user: User = Depends(get_current_user)) -> schema.UserRead:
+    return current_user
