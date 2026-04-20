@@ -4,14 +4,19 @@ import './OtherKeywordsSection.css';
 
 interface Props {
   keywords: Keyword[];
+  excludeArticleIds?: Set<number>;
 }
 
-export function OtherKeywordsSection({ keywords }: Props) {
+export function OtherKeywordsSection({ keywords, excludeArticleIds }: Props) {
   const [isExpanded, setIsExpanded] = useState(false);
 
   if (keywords.length === 0) return null;
 
-  const totalArticles = keywords.reduce((sum, kw) => sum + kw.articles.length, 0);
+  const uniqueArticles = Array.from(
+    new Map(
+      keywords.flatMap((kw) => kw.articles).map((a) => [a.id, a])
+    ).values()
+  ).filter((a) => !excludeArticleIds?.has(a.id));
 
   return (
     <div className="other-section">
@@ -19,11 +24,11 @@ export function OtherKeywordsSection({ keywords }: Props) {
         className="other-section__header"
         onClick={() => setIsExpanded((e) => !e)}
         aria-expanded={isExpanded}
-        aria-label={`Other, ${keywords.length} keywords`}
+        aria-label={`Other, ${uniqueArticles.length} articles`}
       >
         <span className="other-section__title">Other</span>
         <span className="other-section__meta">
-          {keywords.length} keywords · {totalArticles} articles
+          {uniqueArticles.length} articles
         </span>
         <span className="other-section__chevron" aria-hidden="true">
           {isExpanded ? '▲' : '▼'}
@@ -32,21 +37,17 @@ export function OtherKeywordsSection({ keywords }: Props) {
 
       {isExpanded && (
         <ul className="other-section__list">
-          {keywords.map((kw) => (
-            <li key={kw.id} className="other-section__item">
-              <span className="other-section__keyword">{kw.text}</span>
-              {kw.articles.map((article) => (
-                <a
-                  key={article.id}
-                  href={article.url ?? '#'}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="other-section__link"
-                >
-                  {article.title ?? 'Untitled'}
-                  <span className="other-section__external" aria-hidden="true">↗</span>
-                </a>
-              ))}
+          {uniqueArticles.map((article) => (
+            <li key={article.id} className="other-section__item">
+              <a
+                href={article.url ?? '#'}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="other-section__link"
+              >
+                {article.title ?? 'Untitled'}
+                <span className="other-section__external" aria-hidden="true">↗</span>
+              </a>
             </li>
           ))}
         </ul>

@@ -1,20 +1,20 @@
 import logging
 
-import nltk
-import yake
-
-nltk.download('stopwords', quiet=True)
+import spacy
 from sqlalchemy.orm import Session
 
 from db.models import Article, Keyword, article_keyword
 
 logger = logging.getLogger(__name__)
 
+_nlp = spacy.load("en_core_web_sm")
+_ENTITY_LABELS = {"PERSON", "ORG", "GPE", "LOC", "EVENT", "PRODUCT", "WORK_OF_ART", "NORP", "FAC", "LAW"}
+
 
 def link_keywords(
         session: Session,
         article: Article,
-        raw_keywords: list[tuple[str, float]],
+        raw_keywords: list[tuple[str, float | None]],
 ) -> int:
     """Apply pre-extracted keywords to an article. Returns number of keywords linked."""
     linked = 0
@@ -30,16 +30,19 @@ def link_keywords(
             session.add(keyword)
             session.flush()
 
-        session.execute(
-            article_keyword.insert().values(
-                article_id=article.id,
-                keyword_id=keyword.id,
-                score=score,
+        try:
+            session.execute(
+                article_keyword.insert().values(
+                    article_id=article.id,
+                    keyword_id=keyword.id,
+                    score=score,
+                )
             )
-        )
-        linked += 1
+            linked += 1
 
-    session.commit()
+            session.commit()
+        except Exception as e:
+            logger.exception(f"failed to link keyword: {keyword.id}:{keyword.text} to {article.id}:{article.title}")
     return linked
 
 
@@ -48,17 +51,16 @@ def extract_keywords_for_article(
         session: Session,
 ) -> int:
     """Extract and link keywords for a single article. Returns number of keywords linked."""
-    nltk_stopwords = set(nltk.corpus.stopwords.words("english"))
-    extractor = yake.KeywordExtractor(
-        lan="en",
-        n=3,
-        dedup_lim=0.9,
-        dedup_func="seqm",
-        windowsSize=1,
-        top=10,
-        stopwords=nltk_stopwords,
-    )
-    return link_keywords(session, article, extractor.extract_keywords(article.title))
+    text = article.title or ""
+    if not text.strip() and article.text:
+        text = article.text[:500]
+    doc = _nlp(text)
+    raw_keywords = [
+        (ent.text, None)
+        for ent in doc.ents
+        if ent.label_ in _ENTITY_LABELS
+    ]
+    return link_keywords(session, article, raw_keywords)
 
 
 def extract_keywords(session: Session) -> None:

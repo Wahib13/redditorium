@@ -91,12 +91,13 @@ function App() {
         ) : (() => {
           const main = keywords?.filter((kw) => kw.articles.length >= 2) ?? [];
           const other = keywords?.filter((kw) => kw.articles.length < 2) ?? [];
+          const mainArticleIds = new Set(main.flatMap((kw) => kw.articles.map((a) => a.id)));
           return (
             <div className="keywords-grid">
               {main.map((kw) => (
                 <KeywordCard key={kw.text} keyword={kw} />
               ))}
-              <OtherKeywordsSection keywords={other} />
+              <OtherKeywordsSection keywords={other} excludeArticleIds={mainArticleIds} />
             </div>
           );
         })()}
