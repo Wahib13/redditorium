@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { KeywordCard } from './components/KeywordCard';
-import { OtherKeywordsSection } from './components/OtherKeywordsSection';
 import { DayCycler } from './components/DayCycler';
+import { ArticleCard } from './components/ArticleCard';
 import { SearchResults } from './components/SearchResults';
 import { useKeywords } from './hooks/useKeywords';
 import { useKeywordUpdates } from './hooks/useKeywordUpdates';
@@ -27,6 +26,8 @@ function App() {
   const [selectedDate, setSelectedDate] = useState(today);
   const isToday = selectedDate === today;
 
+  const [selectedKeywordId, setSelectedKeywordId] = useState<number | null>(null);
+
   const [inputValue, setInputValue] = useState('');
   const [submittedQuery, setSubmittedQuery] = useState('');
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -38,9 +39,17 @@ function App() {
 
   const isSearchMode = submittedQuery.trim().length > 0;
 
+  const visibleKeywords = keywords?.filter((kw) => kw.articles.length >= 2);
+
+  // Keep selection in sync across date changes — no explicit reset needed
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [selectedDate]);
+    if (visibleKeywords && visibleKeywords.length > 0) {
+      setSelectedKeywordId((prev) => {
+        if (prev !== null && visibleKeywords.some((k) => k.id === prev)) return prev;
+        return visibleKeywords[0].id;
+      });
+    }
+  }, [keywords]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function goOlder() {
     const d = new Date(selectedDate + 'T00:00:00');
@@ -65,12 +74,16 @@ function App() {
     searchInputRef.current?.focus();
   }
 
+  // Fall back to first keyword so the "nothing selected" state is never shown while data exists
+  const selectedKeyword =
+    visibleKeywords?.find((kw) => kw.id === selectedKeywordId) ?? visibleKeywords?.[0] ?? null;
+
   if (isLoading) {
     return (
-      <div className="app-container">
+      <div className="app">
         <div className="loading-container">
           <div className="loading-spinner"></div>
-          <p className="loading-text">Loading...</p>
+          <p className="loading-text">Loading…</p>
         </div>
       </div>
     );
@@ -78,7 +91,7 @@ function App() {
 
   if (isError) {
     return (
-      <div className="app-container">
+      <div className="app">
         <div className="error-container">
           <h2>Failed to load keywords</h2>
           <p>Please try again later.</p>
@@ -88,14 +101,14 @@ function App() {
   }
 
   return (
-    <div className="app-container">
-      <header className="app-header">
-        <div className="app-title-row">
-          <h1 className="app-title">Trend Engine</h1>
+    <div className="app">
+      <header className="navbar">
+        <div className="navbar__brand">
+          <span className="navbar__title">Trend Engine</span>
           {isToday && !isSearchMode && <span className="live-badge">live</span>}
         </div>
 
-        <form className="search-form" onSubmit={handleSearchSubmit}>
+        <form className="navbar__search" onSubmit={handleSearchSubmit}>
           <input
             ref={searchInputRef}
             className="search-input"
@@ -112,11 +125,9 @@ function App() {
         </form>
       </header>
 
-      <main className="app-main">
-        {isSearchMode ? (
-          <SearchResults query={submittedQuery} results={searchResults} isLoading={isSearching} />
-        ) : (
-          <>
+      <div className="app-body">
+        <aside className="sidebar">
+          <div className="sidebar__day-nav">
             <DayCycler
               label={formatDateLabel(selectedDate, today)}
               hasNewer={!isToday}
@@ -124,27 +135,39 @@ function App() {
               onNewer={goNewer}
               onOlder={goOlder}
             />
+          </div>
 
-            {keywords && keywords.length === 0 ? (
-              <div className="empty-state">
-                <p>No keywords for this day.</p>
-              </div>
-            ) : (() => {
-              const main = keywords?.filter((kw) => kw.articles.length >= 2) ?? [];
-              const other = keywords?.filter((kw) => kw.articles.length < 2) ?? [];
-              const mainArticleIds = new Set(main.flatMap((kw) => kw.articles.map((a) => a.id)));
-              return (
-                <div className="keywords-grid">
-                  {main.map((kw) => (
-                    <KeywordCard key={kw.text} keyword={kw} />
-                  ))}
-                  <OtherKeywordsSection keywords={other} excludeArticleIds={mainArticleIds} />
-                </div>
-              );
-            })()}
-          </>
-        )}
-      </main>
+          <nav className="sidebar__keyword-list" aria-label="Keywords">
+            {visibleKeywords?.map((kw) => (
+              <button
+                key={kw.id ?? kw.text}
+                className={`keyword-item${selectedKeywordId === kw.id ? ' keyword-item--active' : ''}`}
+                onClick={() => setSelectedKeywordId(kw.id)}
+              >
+                <span className="keyword-item__text">{kw.text}</span>
+                <span className="keyword-item__count">{kw.articles.length}</span>
+              </button>
+            ))}
+            {visibleKeywords?.length === 0 && (
+              <p className="main-content__empty">No keywords for this day.</p>
+            )}
+          </nav>
+        </aside>
+
+        <main className="main-content">
+          {isSearchMode ? (
+            <SearchResults query={submittedQuery} results={searchResults} isLoading={isSearching} />
+          ) : selectedKeyword ? (
+            <div className="articles-list">
+              {selectedKeyword.articles.map((article) => (
+                <ArticleCard key={article.id} article={article} />
+              ))}
+            </div>
+          ) : (
+            <p className="main-content__empty">Select a keyword to see articles.</p>
+          )}
+        </main>
+      </div>
     </div>
   );
 }

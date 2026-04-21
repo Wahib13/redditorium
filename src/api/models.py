@@ -28,6 +28,7 @@ class ArticleSearchResult(BaseModel):
     title: str | None
     url: str | None
     summary: str | None
+    image: str | None
     distance: float
 
 

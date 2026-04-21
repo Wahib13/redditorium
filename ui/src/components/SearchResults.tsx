@@ -18,7 +18,7 @@ export function SearchResults({ query, results, isLoading }: Props) {
   }
 
   return (
-    <div className="search-results__list">
+    <div className="articles-list">
       {results.map((article) => (
         <ArticleCard key={article.id} article={article} distance={article.distance} />
       ))}

@@ -41,6 +41,7 @@ def search_articles(
             title=article.title,
             url=article.url,
             summary=article.summary,
+            image=article.image,
             distance=distance,
         )
         for article, distance in rows

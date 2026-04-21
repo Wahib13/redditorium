@@ -1,19 +1,6 @@
 .search-results__status {
   text-align: center;
   color: #6b7280;
-  font-size: 15px;
-  margin-top: 40px;
-}
-
-.search-results__list {
-  border: 1px solid #e5e7eb;
-  border-radius: 10px;
-  overflow: hidden;
-}
-
-/* Dark mode */
-@media (prefers-color-scheme: dark) {
-  .search-results__list {
-    border-color: #2e2e2e;
-  }
+  font-size: 14px;
+  margin-top: 48px;
 }
