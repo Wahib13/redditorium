@@ -1,14 +1,11 @@
 import logging
 
-import spacy
+from keybert import KeyBERT
 from sqlalchemy.orm import Session
 
 from db.models import Article, Keyword, article_keyword
 
 logger = logging.getLogger(__name__)
-
-_nlp = spacy.load("en_core_web_sm")
-_ENTITY_LABELS = {"PERSON", "ORG", "GPE", "LOC", "EVENT", "PRODUCT", "WORK_OF_ART", "NORP", "FAC", "LAW"}
 
 
 def link_keywords(
@@ -20,66 +17,47 @@ def link_keywords(
     linked = 0
     for kw_text, score in raw_keywords:
         normalized = kw_text.lower().strip()
-
-        existing = session.query(Keyword).filter_by(text=normalized).first()
-        if existing and existing.blocked:
+        if not normalized:
             continue
 
-        keyword = existing or Keyword(text=normalized)
-        if not existing:
+        existing_kw = session.query(Keyword).filter_by(text=normalized).first()
+        if existing_kw and existing_kw.blocked:
+            continue
+
+        keyword = existing_kw or Keyword(text=normalized)
+        if not existing_kw:
             session.add(keyword)
             session.flush()
 
-        try:
-            session.execute(
-                article_keyword.insert().values(
-                    article_id=article.id,
-                    keyword_id=keyword.id,
-                    score=score,
-                )
+        already_linked = session.execute(
+            article_keyword.select().where(
+                article_keyword.c.article_id == article.id,
+                article_keyword.c.keyword_id == keyword.id,
             )
-            linked += 1
+        ).first()
+        if already_linked:
+            continue
 
-            session.commit()
-        except Exception as e:
-            logger.exception(f"failed to link keyword: {keyword.id}:{keyword.text} to {article.id}:{article.title}")
+        session.execute(
+            article_keyword.insert().values(
+                article_id=article.id,
+                keyword_id=keyword.id,
+                score=score,
+            )
+        )
+        linked += 1
+
+    session.commit()
     return linked
 
 
-def extract_keywords_for_article(
-        article: Article,
-        session: Session,
-) -> int:
-    """Extract and link keywords for a single article. Returns number of keywords linked."""
-    text = article.title or ""
-    if not text.strip() and article.text:
-        text = article.text[:500]
-    doc = _nlp(text)
-    raw_keywords = [
-        (ent.text, None)
-        for ent in doc.ents
-        if ent.label_ in _ENTITY_LABELS
-    ]
-    return link_keywords(session, article, raw_keywords)
+def extract_keywords_keybert(article: Article, session: Session, kw_model: KeyBERT) -> int:
+    """Extract keywords from article title using KeyBERT, always including the feed topic."""
+    topic_name = article.feed.topic.name if article.feed and article.feed.topic else None
+    keywords: list[tuple[str, float | None]] = [(topic_name, None)] if topic_name else []
 
+    title = article.title or ""
+    if len(title.split()) >= 4:
+        keywords += kw_model.extract_keywords(title, keyphrase_ngram_range=(1, 2), stop_words="english", top_n=5)
 
-def extract_keywords(session: Session) -> None:
-    """Batch extraction for all articles that have a title but no keywords yet."""
-    articles = (
-        session.query(Article)
-        .filter(Article.title.isnot(None))
-        .filter(~Article.keywords.any())
-        .all()
-    )
-
-    logger.info(f"found {len(articles)} articles to process")
-    total_linked = total_skipped_blocked = 0
-
-    for article in articles:
-        linked = extract_keywords_for_article(article, session)
-        total_linked += linked
-
-    logger.info(
-        f"done — {total_linked} keyword links created, "
-        f"{total_skipped_blocked} skipped by DB block flag"
-    )
+    return link_keywords(session, article, keywords)

@@ -18,6 +18,7 @@ class ArticleInKeyword(BaseModel):
     id: int
     title: str | None
     url: str | None
+    summary: str | None
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -31,33 +32,6 @@ class KeywordWithArticles(BaseModel):
 class ArticlesProcessedRequest(BaseModel):
     article_ids: list[int]
 
-
-class KeywordMappingCreate(BaseModel):
-    raw_keyword: str
-    canonical_keyword: str
-
-
-class KeywordMappingRead(BaseModel):
-    id: int
-    raw_keyword: str
-    canonical_keyword: str
-    user_id: int
-    model_config = ConfigDict(from_attributes=True)
-
-
-class UserKeywordRuleCreate(BaseModel):
-    pattern: str
-    keyword: str
-    case_sensitive: bool = False
-
-
-class UserKeywordRuleRead(BaseModel):
-    id: int
-    pattern: str
-    keyword: str
-    user_id: int
-    case_sensitive: bool
-    model_config = ConfigDict(from_attributes=True)
 
 
 class TokenResponse(BaseModel):

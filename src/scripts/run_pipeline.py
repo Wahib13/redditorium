@@ -3,29 +3,35 @@ import asyncio
 import logging
 
 import httpx
+from keybert import KeyBERT
 
 import config
+from adapters.embeddings import SentenceTransformerClient
 from db.connection import get_session
 from db.models import Article
+from pipeline.embeddings import embed_article
 from pipeline.feed_data import stream_rss_entries
-from pipeline.keywords import extract_keywords_for_article
+from pipeline.keywords import extract_keywords_keybert
 
 config.setup_logging()
-
 logger = logging.getLogger(__name__)
+
+_client: SentenceTransformerClient | None = None
+_kw_model: KeyBERT | None = None
 
 
 def _run_for_article(article_id: int) -> int:
-    """Thread worker. Creates its own session — session management lives here, not in the pipeline module."""
+    """Thread worker. Creates its own session."""
     with get_session() as session:
         article = session.query(Article).filter_by(id=article_id).first()
         if not article:
             return 0
-        return extract_keywords_for_article(article, session)
+        embed_article(article, session, _client)
+        return extract_keywords_keybert(article, session, _kw_model)
 
 
 def _notify_api(api_base: str, article_ids: list[int]) -> None:
-    """Notify the API of all processed articles in one request. Best-effort — API may not be running."""
+    """Notify the API of all processed articles. Best-effort as API may not be running."""
     try:
         httpx.post(
             f"{api_base}/internal/articles-processed",
@@ -45,6 +51,10 @@ async def keyword_worker(queue: asyncio.Queue, processed: list[int]) -> None:
 
 
 async def main(api_base: str) -> None:
+    global _client, _kw_model
+    _client = SentenceTransformerClient()
+    _kw_model = KeyBERT(model=_client.model)
+
     queue = asyncio.Queue()
     processed: list[int] = []
     with get_session() as session:

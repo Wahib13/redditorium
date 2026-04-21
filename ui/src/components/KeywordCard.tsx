@@ -1,9 +1,52 @@
 import { useState } from 'react';
-import type { Keyword } from '../data-model/keyword';
+import type { ArticleInKeyword, Keyword } from '../data-model/keyword';
 import './KeywordCard.css';
 
 interface Props {
   keyword: Keyword;
+}
+
+function ArticleRow({ article }: { article: ArticleInKeyword }) {
+  const [expanded, setExpanded] = useState(false);
+  const hasSummary = !!article.summary;
+
+  return (
+    <li className="keyword-card__article">
+      <button
+        className={`keyword-card__article-row${hasSummary ? ' keyword-card__article-row--clickable' : ''}`}
+        onClick={() => hasSummary && setExpanded((o) => !o)}
+        aria-expanded={hasSummary ? expanded : undefined}
+        disabled={!hasSummary}
+      >
+        <span className="keyword-card__title">{article.title ?? 'Untitled'}</span>
+        {hasSummary && (
+          <span className="keyword-card__chevron" aria-hidden="true">
+            {expanded ? '▲' : '▼'}
+          </span>
+        )}
+      </button>
+
+      {expanded && (
+        <div className="keyword-card__expanded">
+          {hasSummary && (
+            <div
+              className="keyword-card__summary"
+              dangerouslySetInnerHTML={{ __html: article.summary! }}
+            />
+          )}
+          <a
+            href={article.url ?? '#'}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="keyword-card__full-story"
+            onClick={(e) => e.stopPropagation()}
+          >
+            Full story ↗
+          </a>
+        </div>
+      )}
+    </li>
+  );
 }
 
 export function KeywordCard({ keyword }: Props) {
@@ -27,17 +70,7 @@ export function KeywordCard({ keyword }: Props) {
       {isExpanded && (
         <ul className="keyword-card__articles">
           {keyword.articles.map((article) => (
-            <li key={article.id} className="keyword-card__article">
-              <a
-                href={article.url ?? '#'}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="keyword-card__link"
-              >
-                {article.title ?? 'Untitled'}
-                <span className="keyword-card__external" aria-hidden="true">↗</span>
-              </a>
-            </li>
+            <ArticleRow key={article.id} article={article} />
           ))}
         </ul>
       )}

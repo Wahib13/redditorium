@@ -1,6 +1,7 @@
 import datetime
 
-from sqlalchemy import Column, Integer, DateTime, String, Text, Float, Boolean, ForeignKey, Table, UniqueConstraint
+from pgvector.sqlalchemy import Vector
+from sqlalchemy import Column, Integer, DateTime, String, Text, Float, Boolean, ForeignKey, Table
 from sqlalchemy.orm import relationship
 
 from db.connection import Base
@@ -57,31 +58,11 @@ class Keyword(Base):
     articles = relationship("Article", secondary=article_keyword, back_populates="keywords")
 
 
-class KeywordMapping(Base):
-    __tablename__ = "keyword_mapping"
 
-    id = Column(Integer, primary_key=True)
-    raw_keyword = Column(Text, nullable=False, index=True)
-    canonical_keyword = Column(Text, nullable=False, index=True)
-    user_id = Column(Integer, ForeignKey("user.id"), nullable=False)
-
-    __table_args__ = (
-        UniqueConstraint("raw_keyword", "canonical_keyword", "user_id", name="uq_mapping_per_user"),
-    )
-
-
-class UserKeywordRule(Base):
-    __tablename__ = "user_keyword_rule"
-
-    id = Column(Integer, primary_key=True)
-    pattern = Column(Text, nullable=False)
-    keyword = Column(Text, nullable=False)
-    user_id = Column(Integer, ForeignKey("user.id"), nullable=False)
-    case_sensitive = Column(Boolean, default=False, nullable=False)
-
-    __table_args__ = (
-        UniqueConstraint("pattern", "user_id", name="uq_rule_per_user"),
-    )
+class Config(Base):
+    __tablename__ = 'config'
+    key = Column(String, primary_key=True)
+    value = Column(String, nullable=False)
 
 
 class Article(Base):
@@ -100,5 +81,7 @@ class Article(Base):
     text = Column(Text, nullable=True)
     summary = Column(Text, nullable=True)
     created = Column(DateTime, nullable=False, default=datetime.datetime.utcnow)
+
+    embedding = Column(Vector(384), nullable=True)
 
     keywords = relationship("Keyword", secondary=article_keyword, back_populates="articles")
