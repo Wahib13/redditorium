@@ -11,6 +11,7 @@ interface WsArticle {
   title: string | null;
   url: string | null;
   summary: string | null;
+  image: string | null;
   keywords: { id: number; text: string }[];
 }
 
@@ -45,6 +46,7 @@ export function useKeywordUpdates(date: string) {
               title: article.title,
               url: article.url,
               summary: article.summary ?? null,
+              image: article.image ?? null,
             };
             for (const kw of article.keywords) {
               const existing = updated.find((k) => k.id === kw.id);

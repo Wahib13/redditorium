@@ -17,13 +17,39 @@ def _extract_summary(entry: Any) -> str | None:
     return text.strip()
 
 
+def _extract_image(entry: Any) -> str | None:
+    thumbnails = entry.get("media_thumbnail")
+    if thumbnails:
+        url = thumbnails[0].get("url") if isinstance(thumbnails[0], dict) else None
+        if url:
+            return url
+
+    for item in entry.get("media_content", []):
+        if isinstance(item, dict):
+            medium = item.get("medium", "")
+            mime = item.get("type", "")
+            if medium == "image" or mime.startswith("image/"):
+                url = item.get("url")
+                if url:
+                    return url
+
+    for enc in entry.get("enclosures", []):
+        if isinstance(enc, dict) and enc.get("type", "").startswith("image/"):
+            url = enc.get("url") or enc.get("href")
+            if url:
+                return url
+
+    return None
+
+
 def save_new_article(
-        session, feed: Feed, url: str, title: str | None, summary: str | None = None
+        session, feed: Feed, url: str, title: str | None, summary: str | None = None,
+        image: str | None = None,
 ) -> "Article | None":
     """Persist a new article if the URL hasn't been seen. Returns saved Article or None if duplicate."""
     if session.query(Article).filter_by(url=url).first():
         return None
-    article = Article(url=url, title=title, summary=summary, source_topic=feed.topic.name, feed=feed)
+    article = Article(url=url, title=title, summary=summary, image=image, source_topic=feed.topic.name, feed=feed)
     session.add(article)
     session.commit()
     logger.info(f"saved article {article.id}: {title}")
@@ -43,7 +69,8 @@ async def process_feed(
         if not url or not title:
             continue
         summary = _extract_summary(entry)
-        article = save_new_article(session, feed, url, title, summary)
+        image = _extract_image(entry)
+        article = save_new_article(session, feed, url, title, summary, image)
         if article:
             await on_new_article(article.id)
 

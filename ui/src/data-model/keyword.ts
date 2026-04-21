@@ -3,6 +3,7 @@ export interface Article {
   title: string | null;
   url: string | null;
   summary: string | null;
+  image: string | null;
 }
 
 export interface ArticleSearchResult extends Article {

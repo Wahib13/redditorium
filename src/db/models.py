@@ -83,5 +83,6 @@ class Article(Base):
     created = Column(DateTime, nullable=False, default=datetime.datetime.utcnow)
 
     embedding = Column(Vector(384), nullable=True)
+    image = Column(String, nullable=True)
 
     keywords = relationship("Keyword", secondary=article_keyword, back_populates="articles")

@@ -1,52 +1,10 @@
 import { useState } from 'react';
-import type { Article, Keyword } from '../data-model/keyword';
+import type { Keyword } from '../data-model/keyword';
+import { ArticleCard } from './ArticleCard';
 import './KeywordCard.css';
 
 interface Props {
   keyword: Keyword;
-}
-
-function ArticleRow({ article }: { article: Article }) {
-  const [expanded, setExpanded] = useState(false);
-  const hasSummary = !!article.summary;
-
-  return (
-    <li className="keyword-card__article">
-      <button
-        className={`keyword-card__article-row${hasSummary ? ' keyword-card__article-row--clickable' : ''}`}
-        onClick={() => hasSummary && setExpanded((o) => !o)}
-        aria-expanded={hasSummary ? expanded : undefined}
-        disabled={!hasSummary}
-      >
-        <span className="keyword-card__title">{article.title ?? 'Untitled'}</span>
-        {hasSummary && (
-          <span className="keyword-card__chevron" aria-hidden="true">
-            {expanded ? '▲' : '▼'}
-          </span>
-        )}
-      </button>
-
-      {expanded && (
-        <div className="keyword-card__expanded">
-          {hasSummary && (
-            <div
-              className="keyword-card__summary"
-              dangerouslySetInnerHTML={{ __html: article.summary! }}
-            />
-          )}
-          <a
-            href={article.url ?? '#'}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="keyword-card__full-story"
-            onClick={(e) => e.stopPropagation()}
-          >
-            Full story ↗
-          </a>
-        </div>
-      )}
-    </li>
-  );
 }
 
 export function KeywordCard({ keyword }: Props) {
@@ -68,11 +26,11 @@ export function KeywordCard({ keyword }: Props) {
       </button>
 
       {isExpanded && (
-        <ul className="keyword-card__articles">
+        <div className="keyword-card__articles">
           {keyword.articles.map((article) => (
-            <ArticleRow key={article.id} article={article} />
+            <ArticleCard key={article.id} article={article} />
           ))}
-        </ul>
+        </div>
       )}
     </div>
   );

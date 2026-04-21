@@ -12,6 +12,7 @@ class Article(BaseModel):
     title: str | None
     url: str | None
     summary: str | None
+    image: str | None
     model_config = ConfigDict(from_attributes=True)
 
 
