@@ -11,13 +11,6 @@ class Article(BaseModel):
     id: int
     title: str | None
     url: str | None
-    model_config = ConfigDict(from_attributes=True)
-
-
-class ArticleInKeyword(BaseModel):
-    id: int
-    title: str | None
-    url: str | None
     summary: str | None
     model_config = ConfigDict(from_attributes=True)
 
@@ -25,13 +18,20 @@ class ArticleInKeyword(BaseModel):
 class KeywordWithArticles(BaseModel):
     id: int | None
     text: str
-    articles: list[ArticleInKeyword]
+    articles: list[Article]
     model_config = ConfigDict(from_attributes=True)
+
+
+class ArticleSearchResult(BaseModel):
+    id: int
+    title: str | None
+    url: str | None
+    summary: str | None
+    distance: float
 
 
 class ArticlesProcessedRequest(BaseModel):
     article_ids: list[int]
-
 
 
 class TokenResponse(BaseModel):

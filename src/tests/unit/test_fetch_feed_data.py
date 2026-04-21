@@ -28,7 +28,6 @@ async def test_new_articles_are_saved(db_session, fake_entries, fake_source):
 
 @pytest.mark.anyio
 async def test_new_articles_skips_duplicates(db_session, fake_source, fake_articles):
-    # fake_articles are already persisted in db_session by the conftest fixture
     entries = [{"link": a.url, "title": a.title} for a in fake_articles]
     article_count_before = db_session.query(Article).count()
     collected: list[int] = []

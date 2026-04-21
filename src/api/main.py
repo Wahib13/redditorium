@@ -5,6 +5,7 @@ import config
 import api.models as schema
 from api.auth import router as auth_router
 from api.keywords import router as keywords_router
+from api.search import router as search_router
 from db.connection import get_session_dependency
 from db.models import Article
 from fastapi import Depends
@@ -21,6 +22,7 @@ app.add_middleware(
 
 app.include_router(auth_router)
 app.include_router(keywords_router)
+app.include_router(search_router)
 
 
 class ConnectionManager:

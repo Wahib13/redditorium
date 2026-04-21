@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import type { ArticleInKeyword, Keyword } from '../data-model/keyword';
+import type { Article, Keyword } from '../data-model/keyword';
 import './KeywordCard.css';
 
 interface Props {
   keyword: Keyword;
 }
 
-function ArticleRow({ article }: { article: ArticleInKeyword }) {
+function ArticleRow({ article }: { article: Article }) {
   const [expanded, setExpanded] = useState(false);
   const hasSummary = !!article.summary;
 

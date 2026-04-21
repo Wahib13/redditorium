@@ -1,12 +1,16 @@
-export interface ArticleInKeyword {
+export interface Article {
   id: number;
   title: string | null;
   url: string | null;
   summary: string | null;
 }
 
+export interface ArticleSearchResult extends Article {
+  distance: number;
+}
+
 export interface Keyword {
   id: number | null;
   text: string;
-  articles: ArticleInKeyword[];
+  articles: Article[];
 }

@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import type { Keyword, ArticleInKeyword } from '../data-model/keyword';
+import type { Keyword, Article } from '../data-model/keyword';
 
 const WS_URL = import.meta.env.VITE_API_BASE_URL
   .replace(/^https/, 'wss')
@@ -40,7 +40,7 @@ export function useKeywordUpdates(date: string) {
           const updated = prev.map((k) => ({ ...k, articles: [...k.articles] }));
 
           for (const article of msg.articles) {
-            const newArticle: ArticleInKeyword = {
+            const newArticle: Article = {
               id: article.id,
               title: article.title,
               url: article.url,
