@@ -30,23 +30,19 @@ def _run_for_article(article_id: int) -> int:
         return extract_keywords_keybert(article, session, _kw_model)
 
 
-def _notify_api(api_base: str, article_ids: list[int]) -> None:
-    """Notify the API of all processed articles. Best-effort as API may not be running."""
+def _notify_api(api_base: str) -> None:
+    """Notify the API that an article was processed. Best-effort as API may not be running."""
     try:
-        httpx.post(
-            f"{api_base}/internal/articles-processed",
-            json={"article_ids": article_ids},
-            timeout=5,
-        )
+        httpx.post(f"{api_base}/internal/articles-processed", timeout=5)
     except Exception as exc:
         logger.warning(f"could not notify API: {exc}")
 
 
-async def keyword_worker(queue: asyncio.Queue, processed: list[int]) -> None:
+async def keyword_worker(queue: asyncio.Queue, api_base: str) -> None:
     while True:
         article_id = await queue.get()
         await asyncio.to_thread(_run_for_article, article_id)
-        processed.append(article_id)
+        await asyncio.to_thread(_notify_api, api_base)
         queue.task_done()
 
 
@@ -56,14 +52,11 @@ async def main(api_base: str) -> None:
     _kw_model = KeyBERT(model=_client.model)
 
     queue = asyncio.Queue()
-    processed: list[int] = []
     with get_session() as session:
-        worker = asyncio.create_task(keyword_worker(queue, processed))
+        worker = asyncio.create_task(keyword_worker(queue, api_base))
         await stream_rss_entries(session, on_new_article=queue.put)
         await queue.join()
         worker.cancel()
-    if processed:
-        await asyncio.to_thread(_notify_api, api_base, processed)
 
 
 if __name__ == "__main__":

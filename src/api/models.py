@@ -32,9 +32,6 @@ class ArticleSearchResult(BaseModel):
     distance: float
 
 
-class ArticlesProcessedRequest(BaseModel):
-    article_ids: list[int]
-
 
 class TokenResponse(BaseModel):
     access_token: str

@@ -16,15 +16,8 @@ def _date_window(date: datetime.date) -> tuple[datetime.datetime, datetime.datet
     return start, start + datetime.timedelta(days=1)
 
 
-@router.get("/keywords/")
-def get_keywords(
-        date: datetime.date = Query(default=None),
-        session=Depends(get_session_dependency),
-) -> list[schema.KeywordWithArticles]:
-    if date is None:
-        date = datetime.date.today()
+def fetch_keywords_for_date(session, date: datetime.date) -> list[schema.KeywordWithArticles]:
     start, end = _date_window(date)
-
     keywords = (
         session.query(Keyword)
         .join(Keyword.articles)
@@ -33,13 +26,26 @@ def get_keywords(
         .options(contains_eager(Keyword.articles))
         .all()
     )
-
     result = [
-        schema.KeywordWithArticles(id=kw.id, text=kw.text, articles=kw.articles)
+        schema.KeywordWithArticles(
+            id=kw.id,
+            text=kw.text,
+            articles=sorted(kw.articles, key=lambda a: a.created, reverse=True),
+        )
         for kw in keywords
     ]
     result.sort(key=lambda k: len(k.articles), reverse=True)
     return result
+
+
+@router.get("/keywords/")
+def get_keywords(
+        date: datetime.date = Query(default=None),
+        session=Depends(get_session_dependency),
+) -> list[schema.KeywordWithArticles]:
+    if date is None:
+        date = datetime.date.today()
+    return fetch_keywords_for_date(session, date)
 
 
 @router.post("/keyword/{keyword_id}/block")

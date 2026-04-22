@@ -5,5 +5,7 @@ export function useKeywords(date: string) {
   return useQuery({
     queryKey: ['keywords', date],
     queryFn: () => fetchKeywords(date),
+    refetchInterval: false,
+    refetchOnWindowFocus: false,
   });
 }

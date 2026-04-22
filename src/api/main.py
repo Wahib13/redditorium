@@ -1,14 +1,14 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+import datetime
+
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends
 from starlette.middleware.cors import CORSMiddleware
 
 import config
 import api.models as schema
 from api.auth import router as auth_router
-from api.keywords import router as keywords_router
+from api.keywords import router as keywords_router, fetch_keywords_for_date
 from api.search import router as search_router
 from db.connection import get_session_dependency
-from db.models import Article
-from fastapi import Depends
 
 app = FastAPI()
 
@@ -51,24 +51,15 @@ manager = ConnectionManager()
 
 @app.post("/internal/articles-processed")
 async def articles_processed(
-        body: schema.ArticlesProcessedRequest,
         session=Depends(get_session_dependency),
 ):
-    articles = session.query(Article).filter(Article.id.in_(body.article_ids)).all()
+    keywords = fetch_keywords_for_date(session, datetime.date.today())
     payload = {
-        "type": "articles_added",
-        "articles": [
-            {
-                "id": a.id,
-                "title": a.title,
-                "url": a.url,
-                "keywords": [{"id": k.id, "text": k.text} for k in a.keywords],
-            }
-            for a in articles
-        ],
+        "type": "keywords_updated",
+        "keywords": [kw.model_dump() for kw in keywords],
     }
     await manager.broadcast(payload)
-    return {"ok": True, "count": len(articles)}
+    return
 
 
 @app.websocket("/ws")
