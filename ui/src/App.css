@@ -182,6 +182,63 @@ html, body, #root {
   color: #1d4ed8;
 }
 
+/* ── Source panel (right) ─────────────────────── */
+.source-panel {
+  width: 180px;
+  flex-shrink: 0;
+  border-left: 1px solid #e5e7eb;
+  background: #fff;
+  overflow-y: auto;
+  padding: 12px 0;
+}
+
+.source-panel__heading {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: #9ca3af;
+  margin: 0 0 6px 0;
+  padding: 0 14px;
+}
+
+.source-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px;
+  background: none;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  font-size: 13px;
+  color: #374151;
+  transition: background 0.1s;
+}
+
+.source-item:hover {
+  background: #f9fafb;
+}
+
+.source-item--active {
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-weight: 600;
+}
+
+.source-item--active:hover {
+  background: #dbeafe;
+}
+
+.source-item__icon {
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
 /* ── Main content ─────────────────────────────── */
 .main-content {
   flex: 1;

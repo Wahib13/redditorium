@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DayCycler } from './components/DayCycler';
 import { ArticleCard } from './components/ArticleCard';
 import { SearchResults } from './components/SearchResults';
@@ -29,6 +29,7 @@ function App() {
 
   const [selectedKeywordId, setSelectedKeywordId] = useState<number | null>(null);
   const [liveKeywords, setLiveKeywords] = useState<Keyword[] | undefined>(undefined);
+  const [selectedSourceName, setSelectedSourceName] = useState<string | null>(null);
   const initializedForDate = useRef<string | null>(null);
 
   const [inputValue, setInputValue] = useState('');
@@ -41,6 +42,7 @@ function App() {
   useEffect(() => {
     setLiveKeywords(undefined);
     setSelectedKeywordId(null);
+    setSelectedSourceName(null);
     initializedForDate.current = null;
   }, [selectedDate]);
 
@@ -70,6 +72,19 @@ function App() {
   const isSearchMode = submittedQuery.trim().length > 0;
 
   const visibleKeywords = liveKeywords?.filter((kw) => kw.articles.length >= 2);
+
+  const availableSources = useMemo(() => {
+    if (!liveKeywords) return [];
+    const seen = new Map<string, { name: string; icon_url: string | null }>();
+    for (const kw of liveKeywords) {
+      for (const a of kw.articles) {
+        if (a.source_name && !seen.has(a.source_name)) {
+          seen.set(a.source_name, { name: a.source_name, icon_url: a.source_icon_url });
+        }
+      }
+    }
+    return [...seen.values()];
+  }, [liveKeywords]);
 
   function goOlder() {
     const d = new Date(selectedDate + 'T00:00:00');
@@ -185,14 +200,40 @@ function App() {
             <SearchResults query={submittedQuery} results={searchResults} isLoading={isSearching} onKeywordClick={handleKeywordClick} selectedKeywordId={selectedKeywordId} />
           ) : selectedKeyword ? (
             <div className="articles-list">
-              {selectedKeyword.articles.map((article) => (
-                <ArticleCard key={article.id} article={article} onKeywordClick={handleKeywordClick} selectedKeywordId={selectedKeywordId} />
-              ))}
+              {selectedKeyword.articles
+                .filter((a) => selectedSourceName === null || a.source_name === selectedSourceName)
+                .map((article) => (
+                  <ArticleCard key={article.id} article={article} onKeywordClick={handleKeywordClick} selectedKeywordId={selectedKeywordId} />
+                ))}
             </div>
           ) : (
             <p className="main-content__empty">Select a keyword to see articles.</p>
           )}
         </main>
+
+        {!isSearchMode && availableSources.length > 0 && (
+          <aside className="source-panel">
+            <p className="source-panel__heading">Sources</p>
+            <button
+              className={`source-item${selectedSourceName === null ? ' source-item--active' : ''}`}
+              onClick={() => setSelectedSourceName(null)}
+            >
+              All
+            </button>
+            {availableSources.map((src) => (
+              <button
+                key={src.name}
+                className={`source-item${selectedSourceName === src.name ? ' source-item--active' : ''}`}
+                onClick={() => setSelectedSourceName((prev) => prev === src.name ? null : src.name)}
+              >
+                {src.icon_url && (
+                  <img className="source-item__icon" src={src.icon_url} alt="" />
+                )}
+                {src.name}
+              </button>
+            ))}
+          </aside>
+        )}
       </div>
     </div>
   );
