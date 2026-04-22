@@ -72,6 +72,23 @@
   text-transform: lowercase;
 }
 
+.article-card__keyword-tag--active {
+  background: #dbeafe;
+  color: #1d4ed8;
+  font-weight: 600;
+}
+
+.article-card__keyword-tag--clickable {
+  cursor: pointer;
+  border: none;
+  font-family: inherit;
+}
+
+.article-card__keyword-tag--clickable:hover {
+  background: #e5e7eb;
+  color: #374151;
+}
+
 .article-card__summary {
   font-size: 13px;
   color: #4b5563;

@@ -5,9 +5,11 @@ import './ArticleCard.css';
 interface Props {
   article: Article;
   distance?: number;
+  onKeywordClick?: (kwId: number) => void;
+  selectedKeywordId?: number | null;
 }
 
-export function ArticleCard({ article, distance }: Props) {
+export function ArticleCard({ article, distance, onKeywordClick, selectedKeywordId }: Props) {
   const [expanded, setExpanded] = useState(false);
   // Start true so the summary renders collapsed on first paint; useLayoutEffect corrects it before the browser paints.
   const [isTruncated, setIsTruncated] = useState(true);
@@ -44,11 +46,23 @@ export function ArticleCard({ article, distance }: Props) {
 
         {(article.keywords?.length ?? 0) > 0 && (
           <div className="article-card__keywords">
-            {article.keywords.map((kw) => (
-              <span key={kw.id ?? kw.text} className="article-card__keyword-tag">
-                {kw.text}
-              </span>
-            ))}
+            {article.keywords.map((kw) => {
+              const isActive = selectedKeywordId !== undefined && kw.id === selectedKeywordId;
+              const activeClass = isActive ? ' article-card__keyword-tag--active' : '';
+              return onKeywordClick ? (
+                <button
+                  key={kw.id ?? kw.text}
+                  className={`article-card__keyword-tag article-card__keyword-tag--clickable${activeClass}`}
+                  onClick={(e) => { e.stopPropagation(); onKeywordClick(kw.id); }}
+                >
+                  {kw.text}
+                </button>
+              ) : (
+                <span key={kw.id ?? kw.text} className={`article-card__keyword-tag${activeClass}`}>
+                  {kw.text}
+                </span>
+              );
+            })}
           </div>
         )}
 

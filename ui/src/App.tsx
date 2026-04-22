@@ -74,9 +74,15 @@ function App() {
     searchInputRef.current?.focus();
   }
 
-  // Fall back to first keyword so the "nothing selected" state is never shown while data exists
+  // Look up from full list so single-article keywords (hidden from sidebar) still work when clicked
   const selectedKeyword =
-    visibleKeywords?.find((kw) => kw.id === selectedKeywordId) ?? visibleKeywords?.[0] ?? null;
+    keywords?.find((kw) => kw.id === selectedKeywordId) ?? visibleKeywords?.[0] ?? null;
+
+  function handleKeywordClick(kwId: number) {
+    setSelectedKeywordId(kwId);
+    setSubmittedQuery('');
+    setInputValue('');
+  }
 
   if (isLoading) {
     return (
@@ -156,11 +162,11 @@ function App() {
 
         <main className="main-content">
           {isSearchMode ? (
-            <SearchResults query={submittedQuery} results={searchResults} isLoading={isSearching} />
+            <SearchResults query={submittedQuery} results={searchResults} isLoading={isSearching} onKeywordClick={handleKeywordClick} selectedKeywordId={selectedKeywordId} />
           ) : selectedKeyword ? (
             <div className="articles-list">
               {selectedKeyword.articles.map((article) => (
-                <ArticleCard key={article.id} article={article} />
+                <ArticleCard key={article.id} article={article} onKeywordClick={handleKeywordClick} selectedKeywordId={selectedKeywordId} />
               ))}
             </div>
           ) : (

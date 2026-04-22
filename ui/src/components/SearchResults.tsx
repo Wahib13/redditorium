@@ -6,9 +6,11 @@ interface Props {
   query: string;
   results: ArticleSearchResult[];
   isLoading: boolean;
+  onKeywordClick?: (kwId: number) => void;
+  selectedKeywordId?: number | null;
 }
 
-export function SearchResults({ query, results, isLoading }: Props) {
+export function SearchResults({ query, results, isLoading, onKeywordClick, selectedKeywordId }: Props) {
   if (isLoading) {
     return <p className="search-results__status">Searching…</p>;
   }
@@ -20,7 +22,7 @@ export function SearchResults({ query, results, isLoading }: Props) {
   return (
     <div className="articles-list">
       {results.map((article) => (
-        <ArticleCard key={article.id} article={article} distance={article.distance} />
+        <ArticleCard key={article.id} article={article} distance={article.distance} onKeywordClick={onKeywordClick} selectedKeywordId={selectedKeywordId} />
       ))}
     </div>
   );
