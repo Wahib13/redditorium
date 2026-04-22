@@ -16,7 +16,11 @@ if __name__ == "__main__":
 
     sources = []
     for source_data in seeds["sources"]:
-        source = Source(name=source_data["name"])
+        source = Source(
+            name=source_data["name"],
+            display_name=source_data.get("display_name"),
+            icon_url=source_data.get("icon_url"),
+        )
         source.feeds = [
             Feed(url=feed["url"], topic=topics[feed["topic"]])
             for feed in source_data["feeds"]

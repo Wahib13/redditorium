@@ -5,6 +5,8 @@ export interface Article {
   summary: string | null;
   image: string | null;
   keywords: { id: number; text: string }[];
+  source_name: string | null;
+  source_icon_url: string | null;
 }
 
 export interface ArticleSearchResult extends Article {

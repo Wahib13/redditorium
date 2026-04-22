@@ -57,6 +57,27 @@
   width: 100%;
 }
 
+.article-card__source {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.article-card__source-icon {
+  width: 14px;
+  height: 14px;
+  object-fit: contain;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.article-card__source-name {
+  font-size: 11px;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
 .article-card__keywords {
   display: flex;
   flex-wrap: wrap;

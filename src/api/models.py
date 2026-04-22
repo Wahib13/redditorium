@@ -14,6 +14,8 @@ class Article(BaseModel):
     summary: str | None
     image: str | None
     keywords: list[Keyword]
+    source_name: str | None
+    source_icon_url: str | None
     model_config = ConfigDict(from_attributes=True)
 
 

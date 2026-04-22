@@ -1,11 +1,12 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
-from sqlalchemy.orm import subqueryload
+from sqlalchemy.orm import subqueryload, joinedload
 
 import api.models as schema
 from adapters.embeddings import SentenceTransformerClient
+from api.keywords import _article_schema
 from db.connection import get_session_dependency
-from db.models import Article
+from db.models import Article, Feed, Source
 
 router = APIRouter()
 
@@ -34,10 +35,13 @@ def search_articles(
         .where(Article.embedding.isnot(None))
         .order_by(distance_col)
         .limit(limit)
-        .options(subqueryload(Article.keywords))
+        .options(
+            subqueryload(Article.keywords),
+            joinedload(Article.feed).joinedload(Feed.source),
+        )
     ).all()
 
     return [
-        schema.ArticleSearchResult(**schema.Article.model_validate(article).model_dump(), distance=distance)
+        schema.ArticleSearchResult(**_article_schema(article).model_dump(), distance=distance)
         for article, distance in rows
     ]

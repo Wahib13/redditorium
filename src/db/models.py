@@ -21,6 +21,8 @@ class Source(Base):
     __tablename__ = 'source'
     id = Column(Integer, primary_key=True)
     name = Column(String, unique=True, nullable=False)
+    display_name = Column(String, nullable=True)
+    icon_url = Column(String, nullable=True)
 
     feeds = relationship("Feed", back_populates="source")
 

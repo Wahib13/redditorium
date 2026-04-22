@@ -44,6 +44,15 @@ export function ArticleCard({ article, distance, onKeywordClick, selectedKeyword
           )}
         </div>
 
+        {article.source_name && (
+          <div className="article-card__source">
+            {article.source_icon_url && (
+              <img className="article-card__source-icon" src={article.source_icon_url} alt="" />
+            )}
+            <span className="article-card__source-name">{article.source_name}</span>
+          </div>
+        )}
+
         {(article.keywords?.length ?? 0) > 0 && (
           <div className="article-card__keywords">
             {article.keywords.map((kw) => {
