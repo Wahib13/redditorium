@@ -1,3 +1,4 @@
+import datetime
 import logging
 from collections.abc import Awaitable, Callable
 from typing import Any
@@ -15,6 +16,13 @@ def _extract_summary(entry: Any) -> str | None:
         return None
     text = value.get("value") if isinstance(value, dict) else value
     return text.strip()
+
+
+def _extract_published(entry: Any) -> datetime.datetime | None:
+    parsed = entry.get("published_parsed") or entry.get("updated_parsed")
+    if not parsed:
+        return None
+    return datetime.datetime(*parsed[:6])
 
 
 def _extract_image(entry: Any) -> str | None:
@@ -44,12 +52,16 @@ def _extract_image(entry: Any) -> str | None:
 
 def save_new_article(
         session, feed: Feed, url: str, title: str | None, summary: str | None = None,
-        image: str | None = None,
+        image: str | None = None, published: datetime.datetime | None = None,
 ) -> "Article | None":
     """Persist a new article if the URL hasn't been seen. Returns saved Article or None if duplicate."""
     if session.query(Article).filter_by(url=url).first():
         return None
-    article = Article(url=url, title=title, summary=summary, image=image, source_topic=feed.topic.name, feed=feed)
+    article = Article(
+        url=url, title=title, summary=summary, image=image,
+        source_topic=feed.topic.name, feed=feed,
+        created=published or datetime.datetime.utcnow(),
+    )
     session.add(article)
     session.commit()
     logger.info(f"saved article {article.id}: {title}")
@@ -70,7 +82,8 @@ async def process_feed(
             continue
         summary = _extract_summary(entry)
         image = _extract_image(entry)
-        article = save_new_article(session, feed, url, title, summary, image)
+        published = _extract_published(entry)
+        article = save_new_article(session, feed, url, title, summary, image, published)
         if article:
             await on_new_article(article.id)
 
