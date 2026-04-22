@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { DayCycler } from './components/DayCycler';
 import { ArticleCard } from './components/ArticleCard';
 import { SearchResults } from './components/SearchResults';
 import { useKeywords } from './hooks/useKeywords';
 import { useKeywordUpdates } from './hooks/useKeywordUpdates';
 import { useSearch } from './hooks/useSearch';
+import type { Keyword } from './data-model/keyword';
 import './App.css';
 
 function toLocalISODate(d: Date): string {
@@ -27,29 +28,48 @@ function App() {
   const isToday = selectedDate === today;
 
   const [selectedKeywordId, setSelectedKeywordId] = useState<number | null>(null);
+  const [liveKeywords, setLiveKeywords] = useState<Keyword[] | undefined>(undefined);
+  const initializedForDate = useRef<string | null>(null);
 
   const [inputValue, setInputValue] = useState('');
   const [submittedQuery, setSubmittedQuery] = useState('');
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  const { data: keywords, isLoading, isError } = useKeywords(selectedDate);
-  useKeywordUpdates(selectedDate);
+  const { data: fetchedKeywords, isLoading, isError } = useKeywords(selectedDate);
+
+  // Reset live state when date changes so spinner shows while new data loads
+  useEffect(() => {
+    setLiveKeywords(undefined);
+    setSelectedKeywordId(null);
+    initializedForDate.current = null;
+  }, [selectedDate]);
+
+  // Seed liveKeywords from React Query on first fetch for this date; triggers auto-select
+  useEffect(() => {
+    if (!fetchedKeywords) return;
+    if (initializedForDate.current === selectedDate) return;
+    initializedForDate.current = selectedDate;
+    setLiveKeywords(fetchedKeywords);
+    const visible = fetchedKeywords.filter((k) => k.articles.length >= 2);
+    if (visible.length > 0) {
+      setSelectedKeywordId((prev) =>
+        prev !== null && visible.some((k) => k.id === prev) ? prev : visible[0].id
+      );
+    }
+  }, [fetchedKeywords, selectedDate]);
+
+  // WS updates flow into liveKeywords only — no auto-select, no navigation interruption
+  const handleWsUpdate = useCallback((keywords: Keyword[]) => {
+    setLiveKeywords(keywords);
+  }, []);
+
+  useKeywordUpdates(selectedDate, handleWsUpdate);
 
   const { data: searchResults = [] as import('./data-model/keyword').ArticleSearchResult[], isFetching: isSearching } = useSearch(submittedQuery);
 
   const isSearchMode = submittedQuery.trim().length > 0;
 
-  const visibleKeywords = keywords?.filter((kw) => kw.articles.length >= 2);
-
-  // Keep selection in sync across date changes — no explicit reset needed
-  useEffect(() => {
-    if (visibleKeywords && visibleKeywords.length > 0) {
-      setSelectedKeywordId((prev) => {
-        if (prev !== null && visibleKeywords.some((k) => k.id === prev)) return prev;
-        return visibleKeywords[0].id;
-      });
-    }
-  }, [keywords]); // eslint-disable-line react-hooks/exhaustive-deps
+  const visibleKeywords = liveKeywords?.filter((kw) => kw.articles.length >= 2);
 
   function goOlder() {
     const d = new Date(selectedDate + 'T00:00:00');
@@ -76,7 +96,7 @@ function App() {
 
   // Look up from full list so single-article keywords (hidden from sidebar) still work when clicked
   const selectedKeyword =
-    keywords?.find((kw) => kw.id === selectedKeywordId) ?? visibleKeywords?.[0] ?? null;
+    liveKeywords?.find((kw) => kw.id === selectedKeywordId) ?? visibleKeywords?.[0] ?? null;
 
   function handleKeywordClick(kwId: number) {
     setSelectedKeywordId(kwId);
@@ -84,7 +104,7 @@ function App() {
     setInputValue('');
   }
 
-  if (isLoading) {
+  if (isLoading || liveKeywords === undefined) {
     return (
       <div className="app">
         <div className="loading-container">
