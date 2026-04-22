@@ -20,14 +20,14 @@ _client: SentenceTransformerClient | None = None
 _kw_model: KeyBERT | None = None
 
 
-def _run_for_article(article_id: int) -> int:
+def _run_for_article(article_id: int, notify_fn: callable) -> int:
     """Thread worker. Creates its own session."""
     with get_session() as session:
         article = session.query(Article).filter_by(id=article_id).first()
         if not article:
             return 0
         embed_article(article, session, _client)
-        return extract_keywords_keybert(article, session, _kw_model)
+        return extract_keywords_keybert(article, session, _kw_model, on_linked=notify_fn)
 
 
 def _notify_api(api_base: str) -> None:
@@ -41,8 +41,7 @@ def _notify_api(api_base: str) -> None:
 async def keyword_worker(queue: asyncio.Queue, api_base: str) -> None:
     while True:
         article_id = await queue.get()
-        await asyncio.to_thread(_run_for_article, article_id)
-        await asyncio.to_thread(_notify_api, api_base)
+        await asyncio.to_thread(_run_for_article, article_id, lambda: _notify_api(api_base))
         queue.task_done()
 
 

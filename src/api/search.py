@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
+from sqlalchemy.orm import subqueryload
 
 import api.models as schema
 from adapters.embeddings import SentenceTransformerClient
@@ -33,16 +34,10 @@ def search_articles(
         .where(Article.embedding.isnot(None))
         .order_by(distance_col)
         .limit(limit)
+        .options(subqueryload(Article.keywords))
     ).all()
 
     return [
-        schema.ArticleSearchResult(
-            id=article.id,
-            title=article.title,
-            url=article.url,
-            summary=article.summary,
-            image=article.image,
-            distance=distance,
-        )
+        schema.ArticleSearchResult(**schema.Article.model_validate(article).model_dump(), distance=distance)
         for article, distance in rows
     ]

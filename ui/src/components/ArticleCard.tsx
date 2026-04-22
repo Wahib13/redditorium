@@ -42,6 +42,16 @@ export function ArticleCard({ article, distance }: Props) {
           )}
         </div>
 
+        {(article.keywords?.length ?? 0) > 0 && (
+          <div className="article-card__keywords">
+            {article.keywords.map((kw) => (
+              <span key={kw.id ?? kw.text} className="article-card__keyword-tag">
+                {kw.text}
+              </span>
+            ))}
+          </div>
+        )}
+
         {hasSummary && (
           <div
             ref={summaryRef}

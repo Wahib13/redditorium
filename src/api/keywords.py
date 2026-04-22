@@ -1,7 +1,7 @@
 import datetime
 
 from fastapi import APIRouter, Depends, Query, HTTPException
-from sqlalchemy.orm import contains_eager
+from sqlalchemy.orm import contains_eager, subqueryload
 
 import api.models as schema
 from api.auth import get_current_user
@@ -23,7 +23,7 @@ def fetch_keywords_for_date(session, date: datetime.date) -> list[schema.Keyword
         .join(Keyword.articles)
         .filter(~Keyword.blocked)
         .filter(Article.created >= start, Article.created < end)
-        .options(contains_eager(Keyword.articles))
+        .options(contains_eager(Keyword.articles).subqueryload(Article.keywords))
         .all()
     )
     result = [

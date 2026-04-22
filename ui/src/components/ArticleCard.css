@@ -57,6 +57,21 @@
   width: 100%;
 }
 
+.article-card__keywords {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.article-card__keyword-tag {
+  font-size: 11px;
+  color: #6b7280;
+  background: #f3f4f6;
+  border-radius: 999px;
+  padding: 2px 8px;
+  text-transform: lowercase;
+}
+
 .article-card__summary {
   font-size: 13px;
   color: #4b5563;

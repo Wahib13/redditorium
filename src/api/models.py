@@ -13,6 +13,7 @@ class Article(BaseModel):
     url: str | None
     summary: str | None
     image: str | None
+    keywords: list[Keyword]
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -23,12 +24,7 @@ class KeywordWithArticles(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-class ArticleSearchResult(BaseModel):
-    id: int
-    title: str | None
-    url: str | None
-    summary: str | None
-    image: str | None
+class ArticleSearchResult(Article):
     distance: float
 
 

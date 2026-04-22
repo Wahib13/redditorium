@@ -4,6 +4,7 @@ export interface Article {
   url: string | null;
   summary: string | null;
   image: string | null;
+  keywords: { id: number; text: string }[];
 }
 
 export interface ArticleSearchResult extends Article {
