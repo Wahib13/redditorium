@@ -1,7 +1,7 @@
 sources:
   - name: BBC
     display_name: BBC
-    icon_url: https://logo.clearbit.com/bbc.co.uk
+    icon_url: https://www.google.com/s2/favicons?domain=bbc.co.uk&sz=64
     feeds:
       - url: https://feeds.bbci.co.uk/news/politics/rss.xml
         topic: POLITICS
@@ -14,7 +14,7 @@ sources:
 
   - name: THE_GUARDIAN
     display_name: The Guardian
-    icon_url: https://logo.clearbit.com/theguardian.com
+    icon_url: https://www.google.com/s2/favicons?domain=theguardian.com&sz=64
     feeds:
       - url: https://www.theguardian.com/politics/rss
         topic: POLITICS
