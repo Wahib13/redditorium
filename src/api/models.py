@@ -1,3 +1,5 @@
+import datetime
+
 from pydantic import BaseModel, ConfigDict, field_validator
 
 
@@ -16,6 +18,7 @@ class Article(BaseModel):
     keywords: list[Keyword]
     source_name: str | None
     source_icon_url: str | None
+    created: datetime.datetime
     model_config = ConfigDict(from_attributes=True)
 
 

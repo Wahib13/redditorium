@@ -44,14 +44,20 @@ export function ArticleCard({ article, distance, onKeywordClick, selectedKeyword
           )}
         </div>
 
-        {article.source_name && (
-          <div className="article-card__source">
-            {article.source_icon_url && (
-              <img className="article-card__source-icon" src={article.source_icon_url} alt="" />
-            )}
+        <div className="article-card__meta">
+          {article.source_icon_url && (
+            <img className="article-card__source-icon" src={article.source_icon_url} alt="" />
+          )}
+          {article.source_name && (
             <span className="article-card__source-name">{article.source_name}</span>
-          </div>
-        )}
+          )}
+          {article.source_name && <span className="article-card__meta-sep">·</span>}
+          <time className="article-card__created" dateTime={article.created}>
+            {new Date(article.created + 'Z').toLocaleString('en-GB', {
+              day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
+            })}
+          </time>
+        </div>
 
         {(article.keywords?.length ?? 0) > 0 && (
           <div className="article-card__keywords">

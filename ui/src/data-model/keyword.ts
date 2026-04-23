@@ -7,6 +7,7 @@ export interface Article {
   keywords: { id: number; text: string }[];
   source_name: string | null;
   source_icon_url: string | null;
+  created: string;
 }
 
 export interface ArticleSearchResult extends Article {

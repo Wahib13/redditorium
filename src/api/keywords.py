@@ -20,6 +20,7 @@ def _article_schema(a: Article) -> schema.Article:
         keywords=a.keywords,
         source_name=(source.display_name or source.name) if source else None,
         source_icon_url=source.icon_url if source else None,
+        created=a.created,
     )
 
 router = APIRouter()

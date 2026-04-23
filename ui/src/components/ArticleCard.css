@@ -57,7 +57,7 @@
   width: 100%;
 }
 
-.article-card__source {
+.article-card__meta {
   display: flex;
   align-items: center;
   gap: 5px;
@@ -71,9 +71,14 @@
   flex-shrink: 0;
 }
 
-.article-card__source-name {
+.article-card__source-name,
+.article-card__created,
+.article-card__meta-sep {
   font-size: 11px;
   color: #9ca3af;
+}
+
+.article-card__source-name {
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
