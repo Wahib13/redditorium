@@ -2,24 +2,29 @@
 
 ## Summary
 
-Trend Engine is a personal data-driven project focused on **collecting and organizing articles from online content feeds** in order to better understand what topics are being discussed across sources.
+Trend Engine is a personal project that collects articles from RSS feeds and surfaces trending topics in a clean, live-updating UI — without the noise of doom-scrolling.
 
-At its current stage, the project:
+It currently:
 
-- Ingests articles from predefined RSS feeds (BBC, The Guardian)
-- Fetches full article text using newspaper3k
-- Extracts keywords from article text using YAKE
-- Exposes articles and keywords via a REST API
-
-The broader goal is to **reduce doom-scrolling** by creating a clean, structured view of incoming content, surfacing what's relevant through keyword-based grouping and (eventually) user subscriptions to keywords.
+- Ingests articles from RSS feeds (BBC, The Guardian) across topics (Politics, Technology, Business, Health)
+- Fetches full article text and generates semantic embeddings (sentence-transformers)
+- Extracts keywords from article titles using KeyBERT, always including the feed topic
+- Exposes keywords and articles via a REST API with WebSocket live updates
+- Provides a React frontend that groups articles by keyword, filters by source, and supports semantic search
 
 ## Motivation
 
-I built this tool to help myself stay informed without constantly scrolling through feeds. Instead of consuming everything in real time, the idea is to collect content in the background and surface what's relevant in a more deliberate, digestible way.
+I built this to stay informed without constantly scrolling through feeds. Content is collected in the background; the UI surfaces what's relevant in a structured, deliberate way. As new articles are processed, the sidebar updates live without interrupting whatever you're reading.
 
-## Data Model
+## Stack
 
-https://dbdiagram.io/d/FeedScope-68efcd9d2e68d21b41a3386f
+| Layer | Technology |
+|---|---|
+| Backend | FastAPI, SQLAlchemy, PostgreSQL + pgvector |
+| Keyword extraction | KeyBERT |
+| Semantic search | sentence-transformers (384-dim), pgvector cosine distance |
+| Frontend | React, TypeScript, Vite, React Query |
+| Auth | JWT (python-jose) |
 
 ## Installation
 
@@ -30,7 +35,7 @@ git clone https://github.com/Wahib13/trend-engine
 cd trend-engine
 ```
 
-2. Install dependencies
+2. Install Python dependencies
 
 ```bash
 pip install -r requirements.txt
@@ -42,6 +47,8 @@ pip install -r requirements.txt
 cp .env.example .env
 cp ui/.env.example ui/.env
 ```
+
+Edit `.env` — at minimum set `DATABASE_CONNECTION_STRING` (PostgreSQL with pgvector) and `JWT_SECRET_KEY`.
 
 4. Run database migrations
 
@@ -56,25 +63,28 @@ alembic upgrade head
 python -m scripts.init_db
 ```
 
-Sources and feeds are defined in `src/seeds.yaml` — edit that file to add or remove feeds.
+Sources and feeds are defined in `src/seeds.yaml` — edit that file to add or remove feeds, then re-run `init_db`.
 
 ## Running the Pipeline
 
 ```bash
 cd src/
 
-# Fetch article titles from RSS feeds
-python -m scripts.fetch_feed_data
+# Full pipeline: fetch feeds → embed → extract keywords → notify UI live
+python -m scripts.run_pipeline --api-base http://localhost:8081
 
-# Fetch full article text
-python -m scripts.fetch_content
+# Or run individual steps
+python -m scripts.fetch_feed_data   # fetch RSS entries
+python -m scripts.fetch_content     # download full article text
 ```
 
-## Running Tests
+The pipeline notifies the API after each keyword link. If the API is running, connected browsers update in real time via WebSocket.
+
+## Running the API
 
 ```bash
 cd src/
-python -m pytest
+uvicorn api.main:app --reload
 ```
 
 ## Running the Frontend
@@ -89,4 +99,11 @@ npm run dev
 
 ```bash
 docker compose up
+```
+
+## Running Tests
+
+```bash
+cd src/
+python -m pytest
 ```
