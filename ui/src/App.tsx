@@ -171,75 +171,87 @@ function App() {
         </form>
       </header>
 
-      <div className="app-body">
-        <aside className="sidebar">
-          <div className="sidebar__day-nav">
-            <DayCycler
-              label={formatDateLabel(selectedDate, today)}
-              hasNewer={!isToday}
-              hasOlder={true}
-              onNewer={goNewer}
-              onOlder={goOlder}
-            />
-          </div>
-
-          <nav className="sidebar__keyword-list" aria-label="Keywords">
-            {visibleKeywords?.map((kw) => (
-              <button
-                key={kw.id ?? kw.text}
-                className={`keyword-item${selectedKeywordId === kw.id ? ' keyword-item--active' : ''}`}
-                onClick={() => setSelectedKeywordId(kw.id)}
-              >
-                <span className="keyword-item__text">{kw.text}</span>
-                <span className="keyword-item__count">{kw.articles.length}</span>
-              </button>
-            ))}
-            {visibleKeywords?.length === 0 && (
-              <p className="main-content__empty">No keywords for this day.</p>
-            )}
-          </nav>
-        </aside>
-
-        <main className="main-content">
-          {isSearchMode ? (
-            <SearchResults query={submittedQuery} results={searchResults} isLoading={isSearching} onKeywordClick={handleKeywordClick} selectedKeywordId={selectedKeywordId} />
-          ) : selectedKeyword ? (
-            <div className="articles-list">
-              {selectedKeyword.articles
-                .filter((a) => selectedSourceName === null || a.source_name === selectedSourceName)
-                .map((article) => (
-                  <ArticleCard key={article.id} article={article} onKeywordClick={handleKeywordClick} selectedKeywordId={selectedKeywordId} />
-                ))}
+      {isSearchMode ? (
+        <div className="app-body">
+          <SearchResults
+            key={submittedQuery}
+            query={submittedQuery}
+            results={searchResults}
+            isLoading={isSearching}
+            onClear={clearSearch}
+            onKeywordClick={handleKeywordClick}
+            selectedKeywordId={selectedKeywordId}
+          />
+        </div>
+      ) : (
+        <div className="app-body">
+          <aside className="sidebar">
+            <div className="sidebar__day-nav">
+              <DayCycler
+                label={formatDateLabel(selectedDate, today)}
+                hasNewer={!isToday}
+                hasOlder={true}
+                onNewer={goNewer}
+                onOlder={goOlder}
+              />
             </div>
-          ) : (
-            <p className="main-content__empty">Select a keyword to see articles.</p>
-          )}
-        </main>
 
-        {!isSearchMode && availableSources.length > 0 && (
-          <aside className="source-panel">
-            <p className="source-panel__heading">Sources</p>
-            <button
-              className={`source-item${selectedSourceName === null ? ' source-item--active' : ''}`}
-              onClick={() => setSelectedSourceName(null)}
-            >
-              All
-            </button>
-            {availableSources.map((src) => (
-              <button
-                key={src.name}
-                className={`source-item${selectedSourceName === src.name ? ' source-item--active' : ''}`}
-                onClick={() => setSelectedSourceName((prev) => prev === src.name ? null : src.name)}
-              >
-                {src.icon_url && (
-                  <img className="source-item__icon" src={src.icon_url} alt="" />
-                )}
-                {src.name}
-              </button>
-            ))}
+            <nav className="sidebar__keyword-list" aria-label="Keywords">
+              {visibleKeywords?.map((kw) => (
+                <button
+                  key={kw.id ?? kw.text}
+                  className={`keyword-item${selectedKeywordId === kw.id ? ' keyword-item--active' : ''}`}
+                  onClick={() => setSelectedKeywordId(kw.id)}
+                >
+                  <span className="keyword-item__text">{kw.text}</span>
+                  <span className="keyword-item__count">{kw.articles.length}</span>
+                </button>
+              ))}
+              {visibleKeywords?.length === 0 && (
+                <p className="main-content__empty">No keywords for this day.</p>
+              )}
+            </nav>
           </aside>
-        )}
-      </div>
+
+          <main className="main-content">
+            {selectedKeyword ? (
+              <div className="articles-list">
+                {selectedKeyword.articles
+                  .filter((a) => selectedSourceName === null || a.source_name === selectedSourceName)
+                  .map((article) => (
+                    <ArticleCard key={article.id} article={article} onKeywordClick={handleKeywordClick} selectedKeywordId={selectedKeywordId} />
+                  ))}
+              </div>
+            ) : (
+              <p className="main-content__empty">Select a keyword to see articles.</p>
+            )}
+          </main>
+
+          {availableSources.length > 0 && (
+            <aside className="source-panel">
+              <p className="source-panel__heading">Sources</p>
+              <button
+                className={`source-item${selectedSourceName === null ? ' source-item--active' : ''}`}
+                onClick={() => setSelectedSourceName(null)}
+              >
+                All
+              </button>
+              {availableSources.map((src) => (
+                <button
+                  key={src.name}
+                  className={`source-item${selectedSourceName === src.name ? ' source-item--active' : ''}`}
+                  onClick={() => setSelectedSourceName((prev) => prev === src.name ? null : src.name)}
+                >
+                  {src.icon_url && (
+                    <img className="source-item__icon" src={src.icon_url} alt="" />
+                  )}
+                  {src.name}
+                </button>
+              ))}
+            </aside>
+          )}
+        </div>
+      )}
     </div>
   );
 }
