@@ -56,6 +56,7 @@ class Keyword(Base):
     id = Column(Integer, primary_key=True)
     text = Column(Text, unique=True, nullable=False)
     blocked = Column(Boolean, default=False, nullable=False)
+    embedding = Column(Vector(384), nullable=True)
 
     articles = relationship("Article", secondary=article_keyword, back_populates="keywords")
 

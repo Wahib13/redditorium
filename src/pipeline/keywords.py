@@ -4,6 +4,7 @@ from collections.abc import Callable
 from keybert import KeyBERT
 from sqlalchemy.orm import Session
 
+from adapters.embeddings import SentenceTransformerClient
 from db.models import Article, Keyword, article_keyword
 
 logger = logging.getLogger(__name__)
@@ -14,6 +15,7 @@ def link_keywords(
         article: Article,
         raw_keywords: list[tuple[str, float | None]],
         on_linked: Callable[[], None] | None = None,
+        embed_client: SentenceTransformerClient | None = None,
 ) -> int:
     """Apply pre-extracted keywords to an article. Returns number of keywords linked.
     Commits and calls on_linked() after each successful link."""
@@ -29,6 +31,8 @@ def link_keywords(
 
         keyword = existing_kw or Keyword(text=normalized)
         if not existing_kw:
+            if embed_client:
+                keyword.embedding = embed_client.embed(normalized)
             session.add(keyword)
             session.flush()
 
@@ -61,6 +65,7 @@ def extract_keywords_keybert(
         session: Session,
         kw_model: KeyBERT,
         on_linked: Callable[[], None] | None = None,
+        embed_client: SentenceTransformerClient | None = None,
 ) -> int:
     """Extract keywords from article title using KeyBERT, always including the feed topic."""
     topic_name = article.feed.topic.name if article.feed and article.feed.topic else None
@@ -70,4 +75,4 @@ def extract_keywords_keybert(
     if len(title.split()) >= 4:
         keywords += kw_model.extract_keywords(title, keyphrase_ngram_range=(1, 2), stop_words="english", top_n=5)
 
-    return link_keywords(session, article, keywords, on_linked=on_linked)
+    return link_keywords(session, article, keywords, on_linked=on_linked, embed_client=embed_client)

@@ -27,7 +27,7 @@ def _run_for_article(article_id: int, notify_fn: callable) -> int:
         if not article:
             return 0
         embed_article(article, session, _client)
-        return extract_keywords_keybert(article, session, _kw_model, on_linked=notify_fn)
+        return extract_keywords_keybert(article, session, _kw_model, on_linked=notify_fn, embed_client=_client)
 
 
 def _notify_api(api_base: str) -> None:
