@@ -28,9 +28,13 @@ function App() {
   const isToday = selectedDate === today;
 
   const [selectedKeywordId, setSelectedKeywordId] = useState<number | null>(null);
-  const [liveKeywords, setLiveKeywords] = useState<Keyword[] | undefined>(undefined);
   const [selectedSourceName, setSelectedSourceName] = useState<string | null>(null);
-  const initializedForDate = useRef<string | null>(null);
+
+  // Date-keyed cache: WS updates write to cache[today]; navigation reads cache[selectedDate].
+  // This ensures live updates never interfere with viewing a different date.
+  const [keywordsCache, setKeywordsCache] = useState<Map<string, Keyword[]>>(new Map());
+  const seededDates = useRef<Set<string>>(new Set());
+  const lastAutoSelectDate = useRef<string | null>(null);
 
   const [inputValue, setInputValue] = useState('');
   const [submittedQuery, setSubmittedQuery] = useState('');
@@ -38,31 +42,32 @@ function App() {
 
   const { data: fetchedKeywords, isLoading, isError } = useKeywords(selectedDate);
 
-  // Reset live state when date changes so spinner shows while new data loads
+  // Reset source filter when navigating dates
   useEffect(() => {
-    setLiveKeywords(undefined);
-    setSelectedKeywordId(null);
     setSelectedSourceName(null);
-    initializedForDate.current = null;
   }, [selectedDate]);
 
-  // Seed liveKeywords from React Query on first fetch for this date; triggers auto-select
+  // Seed cache from React Query fetch (once per date — WS takes over afterwards)
   useEffect(() => {
-    if (!fetchedKeywords) return;
-    if (initializedForDate.current === selectedDate) return;
-    initializedForDate.current = selectedDate;
-    setLiveKeywords(fetchedKeywords);
-    const visible = fetchedKeywords.filter((k) => k.articles.length >= 2);
-    if (visible.length > 0) {
-      setSelectedKeywordId((prev) =>
-        prev !== null && visible.some((k) => k.id === prev) ? prev : visible[0].id
-      );
-    }
+    if (!fetchedKeywords || seededDates.current.has(selectedDate)) return;
+    seededDates.current.add(selectedDate);
+    setKeywordsCache((prev) => new Map(prev).set(selectedDate, fetchedKeywords));
   }, [fetchedKeywords, selectedDate]);
 
-  // WS updates flow into liveKeywords only — no auto-select, no navigation interruption
+  // Auto-select first visible keyword whenever we first arrive at a date's data
+  const liveKeywords = keywordsCache.get(selectedDate);
+  useEffect(() => {
+    if (!liveKeywords || lastAutoSelectDate.current === selectedDate) return;
+    lastAutoSelectDate.current = selectedDate;
+    const visible = liveKeywords.filter((k) => k.articles.length >= 2);
+    if (visible.length > 0) {
+      setSelectedKeywordId(visible[0].id);
+    }
+  }, [liveKeywords, selectedDate]);
+
+  // WS updates today's cache entry only — never touches other dates
   const handleWsUpdate = useCallback((keywords: Keyword[]) => {
-    setLiveKeywords(keywords);
+    setKeywordsCache((prev) => new Map(prev).set(today, keywords));
   }, []);
 
   useKeywordUpdates(selectedDate, handleWsUpdate);
@@ -119,7 +124,7 @@ function App() {
     setInputValue('');
   }
 
-  if (isLoading || liveKeywords === undefined) {
+  if (isLoading || !liveKeywords) {
     return (
       <div className="app">
         <div className="loading-container">
