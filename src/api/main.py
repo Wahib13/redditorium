@@ -56,7 +56,7 @@ async def articles_processed(
     keywords = fetch_keywords_for_date(session, datetime.date.today())
     payload = {
         "type": "keywords_updated",
-        "keywords": [kw.model_dump() for kw in keywords],
+        "keywords": [kw.model_dump(mode='json') for kw in keywords],
     }
     await manager.broadcast(payload)
     return
