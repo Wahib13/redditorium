@@ -29,6 +29,7 @@ function App() {
 
   const [selectedKeywordId, setSelectedKeywordId] = useState<number | null>(null);
   const [selectedSourceName, setSelectedSourceName] = useState<string | null>(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // Date-keyed cache: WS updates write to cache[today]; navigation reads cache[selectedDate].
   // This ensures live updates never interfere with viewing a different date.
@@ -122,6 +123,7 @@ function App() {
     setSelectedKeywordId(kwId);
     setSubmittedQuery('');
     setInputValue('');
+    setIsSidebarOpen(false);
   }
 
   if (isLoading || !liveKeywords) {
@@ -149,6 +151,17 @@ function App() {
   return (
     <div className="app">
       <header className="navbar">
+        {!isSearchMode && (
+          <button
+            className="navbar__hamburger"
+            onClick={() => setIsSidebarOpen((o) => !o)}
+            aria-label="Toggle menu"
+          >
+            <span className="navbar__hamburger-bar" />
+            <span className="navbar__hamburger-bar" />
+            <span className="navbar__hamburger-bar" />
+          </button>
+        )}
         <div className="navbar__brand">
           <span className="navbar__title">Trend Engine</span>
           {isToday && !isSearchMode && <span className="live-badge">live</span>}
@@ -185,7 +198,10 @@ function App() {
         </div>
       ) : (
         <div className="app-body">
-          <aside className="sidebar">
+          {isSidebarOpen && (
+            <div className="sidebar-overlay" onClick={() => setIsSidebarOpen(false)} />
+          )}
+          <aside className={`sidebar${isSidebarOpen ? ' sidebar--open' : ''}`}>
             <div className="sidebar__day-nav">
               <DayCycler
                 label={formatDateLabel(selectedDate, today)}
@@ -201,7 +217,7 @@ function App() {
                 <button
                   key={kw.id ?? kw.text}
                   className={`keyword-item${selectedKeywordId === kw.id ? ' keyword-item--active' : ''}`}
-                  onClick={() => setSelectedKeywordId(kw.id)}
+                  onClick={() => { setSelectedKeywordId(kw.id); setIsSidebarOpen(false); }}
                 >
                   <span className="keyword-item__text">{kw.text}</span>
                   <span className="keyword-item__count">{kw.articles.length}</span>
@@ -211,6 +227,28 @@ function App() {
                 <p className="main-content__empty">No keywords for this day.</p>
               )}
             </nav>
+
+            {availableSources.length > 0 && (
+              <div className="sidebar__sources">
+                <p className="sidebar__sources-heading">Sources</p>
+                <button
+                  className={`source-item${selectedSourceName === null ? ' source-item--active' : ''}`}
+                  onClick={() => { setSelectedSourceName(null); setIsSidebarOpen(false); }}
+                >
+                  All
+                </button>
+                {availableSources.map((src) => (
+                  <button
+                    key={src.name}
+                    className={`source-item${selectedSourceName === src.name ? ' source-item--active' : ''}`}
+                    onClick={() => { setSelectedSourceName((prev) => prev === src.name ? null : src.name); setIsSidebarOpen(false); }}
+                  >
+                    {src.icon_url && <img className="source-item__icon" src={src.icon_url} alt="" />}
+                    {src.name}
+                  </button>
+                ))}
+              </div>
+            )}
           </aside>
 
           <main className="main-content">
