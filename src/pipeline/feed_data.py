@@ -75,6 +75,7 @@ async def process_feed(
         parse_fn: Callable[[str], Any] = feedparser.parse,
 ) -> None:
     feed_data = parse_fn(feed.url)
+    print(f"number of entries found: {len(feed_data.entries)}")
     for entry in feed_data.entries:
         url = entry.get("link")
         title = entry.get("title")
@@ -96,5 +97,7 @@ async def stream_rss_entries(
     """Fetch all feeds. Calls on_new_article(article_id) for each new article saved."""
     sources = session.query(Source).all()
     for source in sources:
+        print(f"running for source: {source.id}: {source.name}")
         for feed in source.feeds:
+            print(f"running for feed in: {source.name} - {feed.url}")
             await process_feed(session, feed, on_new_article, parse_fn)
