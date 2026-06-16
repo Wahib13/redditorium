@@ -7,6 +7,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(extra='ignore', env_file="../.env")
 
+    DEBUG: bool = False
     CORS_ALLOWED_ORIGINS: List[str] = []
     DATABASE_CONNECTION_STRING: str = ""
     OLLAMA_MODEL: str = "llama3.1:8b"

@@ -6,7 +6,7 @@ from sqlalchemy.orm import contains_eager, subqueryload, joinedload
 import api.models as schema
 from api.auth import get_current_user
 from db.connection import get_session_dependency
-from db.models import Article, Feed, Keyword, Source, User
+from db.models import Article, Feed, Keyword, User
 
 
 def _article_schema(a: Article) -> schema.Article:
@@ -39,7 +39,7 @@ def fetch_keywords_for_date(session, date: datetime.date) -> list[schema.Keyword
         .filter(~Keyword.blocked)
         .filter(Article.created >= start, Article.created < end)
         .options(
-            contains_eager(Keyword.articles).subqueryload(Article.keywords),
+            contains_eager(Keyword.articles).selectinload(Article.keywords),
             contains_eager(Keyword.articles).joinedload(Article.feed).joinedload(Feed.source),
         )
         .all()
