@@ -47,7 +47,7 @@ article_keyword = Table(
     'article_keyword', Base.metadata,
     Column('article_id', Integer, ForeignKey('article.id'), primary_key=True),
     Column('keyword_id', Integer, ForeignKey('keyword.id'), primary_key=True),
-    Column('score', Float, nullable=True),  # YAKE score; lower = more relevant
+    Column('score', Float, nullable=True),  # KeyBERT relevance score; higher = more relevant. None for topic keywords
 )
 
 
@@ -74,7 +74,7 @@ class Article(Base):
     id = Column(Integer, primary_key=True)
 
     title = Column(String, nullable=True)
-    url = Column(String, nullable=True)
+    url = Column(String, nullable=True, index=True)
 
     feed_url = Column(String, ForeignKey("feed.url"), nullable=False)
     feed = relationship("Feed")

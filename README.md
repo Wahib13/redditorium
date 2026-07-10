@@ -97,6 +97,8 @@ npm run dev
 
 ## Running with Docker
 
+The `api` and `ui` services in `docker-compose.yml` are currently commented out, so this starts only the Postgres + pgvector database. Run the API and frontend with the commands above.
+
 ```bash
 docker compose up
 ```

@@ -41,8 +41,12 @@ def _notify_api(api_base: str) -> None:
 async def keyword_worker(queue: asyncio.Queue, api_base: str) -> None:
     while True:
         article_id = await queue.get()
-        await asyncio.to_thread(_run_for_article, article_id, lambda: _notify_api(api_base))
-        queue.task_done()
+        try:
+            await asyncio.to_thread(_run_for_article, article_id, lambda: _notify_api(api_base))
+        except Exception as exc:
+            logger.exception(f"failed to process article {article_id}: {exc}")
+        finally:
+            queue.task_done()
 
 
 async def main(api_base: str) -> None:

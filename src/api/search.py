@@ -78,8 +78,13 @@ def search_articles(
             if art_id in seen and d < seen[art_id][1]:
                 seen[art_id] = (seen[art_id][0], d)
 
-        # Fetch articles that only appeared via keyword match
-        new_ids = [aid for aid in article_best_kw_dist if aid not in seen]
+        # Fetch articles that only appeared via keyword match. Only the closest
+        # `limit` can survive the final `[:limit]`, so cap here to avoid loading
+        # every article linked to a high-degree keyword (e.g. a topic keyword).
+        new_ids = sorted(
+            (aid for aid in article_best_kw_dist if aid not in seen),
+            key=lambda aid: article_best_kw_dist[aid],
+        )[:limit]
         if new_ids:
             new_articles = session.execute(
                 select(Article)
