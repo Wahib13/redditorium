@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import type { Keyword } from '../data-model/keyword';
 
 const WS_URL = import.meta.env.VITE_API_BASE_URL
@@ -10,10 +10,16 @@ interface WsMessage {
   keywords: Keyword[];
 }
 
-export function useKeywordUpdates(date: string, onUpdate: (keywords: Keyword[]) => void) {
+export function useKeywordUpdates(onUpdate: (keywords: Keyword[]) => void) {
+  const onUpdateRef = useRef(onUpdate);
+  useEffect(() => {
+    onUpdateRef.current = onUpdate;
+  }, [onUpdate]);
+
   useEffect(() => {
     let ws: WebSocket;
     let reconnectTimeout: ReturnType<typeof setTimeout>;
+    let closed = false;
 
     function connect() {
       ws = new WebSocket(WS_URL);
@@ -21,10 +27,11 @@ export function useKeywordUpdates(date: string, onUpdate: (keywords: Keyword[]) 
       ws.onmessage = (event: MessageEvent) => {
         const msg: WsMessage = JSON.parse(event.data);
         if (msg.type !== 'keywords_updated') return;
-        onUpdate(msg.keywords);
+        onUpdateRef.current(msg.keywords);
       };
 
       ws.onclose = () => {
+        if (closed) return;
         reconnectTimeout = setTimeout(connect, 3000);
       };
     }
@@ -32,8 +39,10 @@ export function useKeywordUpdates(date: string, onUpdate: (keywords: Keyword[]) 
     connect();
 
     return () => {
+      // Prevent the pending onclose handler from scheduling a zombie reconnect.
+      closed = true;
       clearTimeout(reconnectTimeout);
       ws?.close();
     };
-  }, [date]); // onUpdate intentionally omitted — stable ref via useCallback in caller
+  }, []);
 }

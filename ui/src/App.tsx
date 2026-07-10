@@ -8,22 +8,32 @@ import { useSearch } from './hooks/useSearch';
 import type { Keyword } from './data-model/keyword';
 import './App.css';
 
-function toLocalISODate(d: Date): string {
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+// The server buckets articles by the UTC calendar day (see api.keywords.utc_today),
+// so the frontend must reason about "today" and date navigation in UTC too.
+function utcISODate(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
+function shiftDate(dateStr: string, deltaDays: number): string {
+  const d = new Date(dateStr + 'T00:00:00Z');
+  d.setUTCDate(d.getUTCDate() + deltaDays);
+  return utcISODate(d);
 }
 
 function formatDateLabel(dateStr: string, todayStr: string): string {
   if (dateStr === todayStr) return 'Today';
-  const d = new Date(dateStr + 'T00:00:00');
-  return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+  const d = new Date(dateStr + 'T00:00:00Z');
+  return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC' });
 }
 
-const today = toLocalISODate(new Date());
-
 function App() {
+  // Recomputed on an interval so a tab left open past UTC midnight rolls over.
+  const [today, setToday] = useState(() => utcISODate(new Date()));
+  useEffect(() => {
+    const id = setInterval(() => setToday(utcISODate(new Date())), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
   const [selectedDate, setSelectedDate] = useState(today);
   const isToday = selectedDate === today;
 
@@ -69,9 +79,9 @@ function App() {
   // WS updates today's cache entry only — never touches other dates
   const handleWsUpdate = useCallback((keywords: Keyword[]) => {
     setKeywordsCache((prev) => new Map(prev).set(today, keywords));
-  }, []);
+  }, [today]);
 
-  useKeywordUpdates(selectedDate, handleWsUpdate);
+  useKeywordUpdates(handleWsUpdate);
 
   const { data: searchResults = [] as import('./data-model/keyword').ArticleSearchResult[], isFetching: isSearching } = useSearch(submittedQuery);
 
@@ -93,15 +103,11 @@ function App() {
   }, [liveKeywords]);
 
   function goOlder() {
-    const d = new Date(selectedDate + 'T00:00:00');
-    d.setDate(d.getDate() - 1);
-    setSelectedDate(toLocalISODate(d));
+    setSelectedDate((d) => shiftDate(d, -1));
   }
 
   function goNewer() {
-    const d = new Date(selectedDate + 'T00:00:00');
-    d.setDate(d.getDate() + 1);
-    setSelectedDate(toLocalISODate(d));
+    setSelectedDate((d) => shiftDate(d, 1));
   }
 
   function handleSearchSubmit(e: React.FormEvent) {
@@ -126,23 +132,23 @@ function App() {
     setIsSidebarOpen(false);
   }
 
-  if (isLoading || !liveKeywords) {
-    return (
-      <div className="app">
-        <div className="loading-container">
-          <div className="loading-spinner"></div>
-          <p className="loading-text">Loading…</p>
-        </div>
-      </div>
-    );
-  }
-
   if (isError) {
     return (
       <div className="app">
         <div className="error-container">
           <h2>Failed to load keywords</h2>
           <p>Please try again later.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isLoading || !liveKeywords) {
+    return (
+      <div className="app">
+        <div className="loading-container">
+          <div className="loading-spinner"></div>
+          <p className="loading-text">Loading…</p>
         </div>
       </div>
     );

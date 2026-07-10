@@ -1,3 +1,4 @@
+import asyncio
 import datetime
 import logging
 from collections.abc import Awaitable, Callable
@@ -74,8 +75,10 @@ async def process_feed(
         on_new_article: Callable[[int], Awaitable[None]],
         parse_fn: Callable[[str], Any] = feedparser.parse,
 ) -> None:
-    feed_data = parse_fn(feed.url)
-    print(f"number of entries found: {len(feed_data.entries)}")
+    # parse_fn does blocking network I/O; run it off the event loop so keyword
+    # extraction can proceed while feeds download.
+    feed_data = await asyncio.to_thread(parse_fn, feed.url)
+    logger.info(f"number of entries found: {len(feed_data.entries)}")
     for entry in feed_data.entries:
         url = entry.get("link")
         title = entry.get("title")
@@ -97,7 +100,7 @@ async def stream_rss_entries(
     """Fetch all feeds. Calls on_new_article(article_id) for each new article saved."""
     sources = session.query(Source).all()
     for source in sources:
-        print(f"running for source: {source.id}: {source.name}")
+        logger.info(f"running for source: {source.id}: {source.name}")
         for feed in source.feeds:
-            print(f"running for feed in: {source.name} - {feed.url}")
+            logger.info(f"running for feed in: {source.name} - {feed.url}")
             await process_feed(session, feed, on_new_article, parse_fn)

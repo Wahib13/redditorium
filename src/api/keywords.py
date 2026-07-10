@@ -1,7 +1,7 @@
 import datetime
 
 from fastapi import APIRouter, Depends, Query, HTTPException
-from sqlalchemy.orm import contains_eager, subqueryload, joinedload
+from sqlalchemy.orm import contains_eager, joinedload
 
 import api.models as schema
 from api.auth import get_current_user
@@ -17,13 +17,19 @@ def _article_schema(a: Article) -> schema.Article:
         url=a.url,
         summary=a.summary,
         image=a.image,
-        keywords=a.keywords,
+        keywords=[k for k in a.keywords if not k.blocked],
         source_name=(source.display_name or source.name) if source else None,
         source_icon_url=source.icon_url if source else None,
         created=a.created,
     )
 
 router = APIRouter()
+
+
+def utc_today() -> datetime.date:
+    """Today in UTC. Article timestamps are stored as naive UTC, so day
+    bucketing must use the UTC calendar day to stay consistent across servers."""
+    return datetime.datetime.now(datetime.timezone.utc).date()
 
 
 def _date_window(date: datetime.date) -> tuple[datetime.datetime, datetime.datetime]:
@@ -62,7 +68,7 @@ def get_keywords(
         session=Depends(get_session_dependency),
 ) -> list[schema.KeywordWithArticles]:
     if date is None:
-        date = datetime.date.today()
+        date = utc_today()
     return fetch_keywords_for_date(session, date)
 
 

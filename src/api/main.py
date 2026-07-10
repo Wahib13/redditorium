@@ -1,16 +1,24 @@
-import datetime
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends
 from starlette.middleware.cors import CORSMiddleware
 
 import config
-import api.models as schema
 from api.auth import router as auth_router
-from api.keywords import router as keywords_router, fetch_keywords_for_date
-from api.search import router as search_router
+from api.keywords import router as keywords_router, fetch_keywords_for_date, utc_today
+from api.search import router as search_router, _get_embed_client
 from db.connection import get_session_dependency
 
-app = FastAPI()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Load the sentence-transformer model at startup so the first /search
+    # request doesn't pay the model-load latency.
+    _get_embed_client()
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -53,7 +61,11 @@ manager = ConnectionManager()
 async def articles_processed(
         session=Depends(get_session_dependency),
 ):
-    keywords = fetch_keywords_for_date(session, datetime.date.today())
+    # The pipeline calls this after every keyword link. Skip the query and
+    # serialization entirely when nobody is listening.
+    if not manager.active:
+        return
+    keywords = fetch_keywords_for_date(session, utc_today())
     payload = {
         "type": "keywords_updated",
         "keywords": [kw.model_dump(mode='json') for kw in keywords],

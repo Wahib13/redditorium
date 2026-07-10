@@ -1,4 +1,5 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import DOMPurify from 'dompurify';
 import type { Article } from '../data-model/keyword';
 import './ArticleCard.css';
 
@@ -21,7 +22,12 @@ export function ArticleCard({ article, distance, onKeywordClick, selectedKeyword
     setIsTruncated(el.scrollHeight > el.clientHeight);
   }, [article.summary]);
 
-  const hasSummary = !!article.summary;
+  // Summaries come from feed-supplied HTML — sanitize before injecting.
+  const safeSummary = useMemo(
+    () => (article.summary ? DOMPurify.sanitize(article.summary) : ''),
+    [article.summary],
+  );
+  const hasSummary = !!safeSummary;
   const isCollapsed = hasSummary && isTruncated && !expanded;
 
   return (
@@ -85,7 +91,7 @@ export function ArticleCard({ article, distance, onKeywordClick, selectedKeyword
           <div
             ref={summaryRef}
             className={`article-card__summary${isCollapsed ? ' article-card__summary--collapsed' : ''}`}
-            dangerouslySetInnerHTML={{ __html: article.summary! }}
+            dangerouslySetInnerHTML={{ __html: safeSummary }}
             onClick={isTruncated ? () => setExpanded((o) => !o) : undefined}
             role={isTruncated ? 'button' : undefined}
             tabIndex={isTruncated ? 0 : undefined}
