@@ -24,9 +24,8 @@ from db.models import Article
 from db.models import Feed
 from db.models import Source
 from db.models import Topic
-from db.models import DailyTrendSummary
-from db.models import Comment
 from db.models import User
+from db.models import Keyword
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:

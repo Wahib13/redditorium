@@ -1,30 +1,61 @@
-from datetime import date
-from pydantic import BaseModel
+import datetime
+
+from pydantic import BaseModel, ConfigDict, field_validator
 
 
-class TopicList(BaseModel):
+class Keyword(BaseModel):
     id: int
-    name: str
+    text: str
+    model_config = ConfigDict(from_attributes=True)
 
 
-class Topic(TopicList):
-    articles: list['Article']
-
-
-class ArticleList(BaseModel):
+class Article(BaseModel):
     id: int
-    title: str
-    url: str
-    topics: list[TopicList]
-
-
-class Article(ArticleList):
-    ...
-
-
-class DailyTrendSummaryList(BaseModel):
-    id: int
-    date: date
+    title: str | None
+    url: str | None
     summary: str | None
-    topic: TopicList
-    articles: list[ArticleList]
+    image: str | None
+    keywords: list[Keyword]
+    source_name: str | None
+    source_icon_url: str | None
+    created: datetime.datetime
+    model_config = ConfigDict(from_attributes=True)
+
+
+class KeywordWithArticles(BaseModel):
+    id: int | None
+    text: str
+    articles: list[Article]
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ArticleSearchResult(Article):
+    distance: float
+
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+
+
+MIN_PASSWORD_LENGTH = 8
+
+
+class UserCreate(BaseModel):
+    email: str
+    password: str
+
+    @field_validator("password")
+    @classmethod
+    def password_min_length(cls, v: str) -> str:
+        if len(v) < MIN_PASSWORD_LENGTH:
+            raise ValueError(f"Password must be at least {MIN_PASSWORD_LENGTH} characters")
+        return v
+
+
+class UserRead(BaseModel):
+    id: int
+    email: str
+    admin: bool
+    model_config = ConfigDict(from_attributes=True)

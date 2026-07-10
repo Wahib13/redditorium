@@ -1,15 +1,14 @@
 import datetime
 
-from fastapi import FastAPI, Depends, Query, HTTPException
-from sqlalchemy.orm import joinedload
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends
 from starlette.middleware.cors import CORSMiddleware
 
 import config
-from api.models import ArticleList, Article, Topic, TopicList, DailyTrendSummaryList
+import api.models as schema
+from api.auth import router as auth_router
+from api.keywords import router as keywords_router, fetch_keywords_for_date
+from api.search import router as search_router
 from db.connection import get_session_dependency
-from db.models import Article as ArticleDB
-from db.models import Topic as TopicDB
-from db.models import DailyTrendSummary as DailyTrendSummaryDB
 
 app = FastAPI()
 
@@ -21,87 +20,53 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
-@app.get("/articles/")
-def get_articles(
-        topic_id: int | None = Query(default=None),
-        skip: int = Query(default=0, ge=0),
-        limit: int = Query(default=50, ge=1, le=100),
-        session=Depends(get_session_dependency)
-) -> list[ArticleList]:
-    query = session.query(ArticleDB)
-
-    if topic_id is not None:
-        query = (
-            query
-            .join(ArticleDB.topics)
-            .filter(TopicDB.id == topic_id)
-        )
-
-    return query.offset(skip).limit(limit).all()
+app.include_router(auth_router)
+app.include_router(keywords_router)
+app.include_router(search_router)
 
 
-@app.get("/topics/")
-def get_topics(
-        session=Depends(get_session_dependency)
-) -> list[TopicList]:
-    topics = session.query(TopicDB).all()
-    return topics
+class ConnectionManager:
+    def __init__(self):
+        self.active: set[WebSocket] = set()
+
+    async def connect(self, ws: WebSocket) -> None:
+        await ws.accept()
+        self.active.add(ws)
+
+    def disconnect(self, ws: WebSocket) -> None:
+        self.active.discard(ws)
+
+    async def broadcast(self, message: dict) -> None:
+        dead = set()
+        for ws in self.active:
+            try:
+                await ws.send_json(message)
+            except Exception:
+                dead.add(ws)
+        self.active -= dead
 
 
-@app.get("/topic/{topic_id}/")
-def get_topic(
-        topic_id: int,
-        session=Depends(get_session_dependency)
-) -> Topic:
-    topic = session.query(TopicDB).filter_by(id=topic_id).first()
-    if topic is None:
-        raise HTTPException(status_code=404, detail="Topic not found")
-    return topic
+manager = ConnectionManager()
 
 
-@app.get("/article/{article_id}/")
-def get_article(
-        article_id: int,
-        session=Depends(get_session_dependency)
-) -> Article:
-    article = session.query(ArticleDB).filter_by(id=article_id).first()
-    if article is None:
-        raise HTTPException(status_code=404, detail="Article not found")
-    return article
+@app.post("/internal/articles-processed")
+async def articles_processed(
+        session=Depends(get_session_dependency),
+):
+    keywords = fetch_keywords_for_date(session, datetime.date.today())
+    payload = {
+        "type": "keywords_updated",
+        "keywords": [kw.model_dump(mode='json') for kw in keywords],
+    }
+    await manager.broadcast(payload)
+    return
 
 
-@app.get("/daily-summaries/")
-def get_daily_summaries(
-        date: datetime.date | None = Query(default=None, description="Filter by date (default: today)"),
-        topic_id: int | None = Query(default=None, description="Filter by topic ID"),
-        skip: int = Query(default=0, ge=0),
-        limit: int = Query(default=50, ge=1, le=100),
-        session=Depends(get_session_dependency)
-) -> list[DailyTrendSummaryList]:
-    """
-    Fetch daily trend summaries with filtering and pagination.
-
-    - **date**: Filter by specific date (defaults to today)
-    - **topic_id**: Filter by topic ID
-    - **skip**: Number of records to skip (pagination)
-    - **limit**: Maximum number of records to return (max 100)
-    """
-    if date is None:
-        date = datetime.date.today()
-
-    query = (
-        session.query(DailyTrendSummaryDB)
-        .options(
-            joinedload(DailyTrendSummaryDB.topic),
-            joinedload(DailyTrendSummaryDB.articles).joinedload(ArticleDB.topics)
-        )
-        .filter(DailyTrendSummaryDB.date <= date)
-    )
-
-    if topic_id is not None:
-        query = query.filter(DailyTrendSummaryDB.topic_id == topic_id)
-
-    query = query.order_by(DailyTrendSummaryDB.date.desc())
-
-    return query.offset(skip).limit(limit).all()
+@app.websocket("/ws")
+async def websocket_endpoint(ws: WebSocket):
+    await manager.connect(ws)
+    try:
+        while True:
+            await ws.receive_text()
+    except WebSocketDisconnect:
+        manager.disconnect(ws)
