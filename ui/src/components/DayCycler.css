@@ -2,29 +2,30 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 6px;
+  background: var(--surface-2);
+  border-radius: var(--radius-m);
+  padding: 4px;
 }
 
 .day-cycler-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
-  background: #f3f4f6;
-  color: #374151;
-  border: none;
-  border-radius: 6px;
-  font-size: 18px;
-  font-weight: 300;
-  cursor: pointer;
+  width: 30px;
+  height: 30px;
+  color: var(--text-2);
+  border-radius: var(--radius-s);
+  font-size: 17px;
+  font-weight: 400;
   flex-shrink: 0;
-  transition: background 0.1s;
+  transition: background 0.12s ease, color 0.12s ease;
 }
 
 .day-cycler-button:hover:not(:disabled) {
-  background: #e5e7eb;
-  color: #1d4ed8;
+  background: var(--surface);
+  color: var(--accent-text);
+  box-shadow: var(--shadow-1);
 }
 
 .day-cycler-button:disabled {
@@ -33,9 +34,10 @@
 }
 
 .day-cycler-label {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
-  color: #374151;
+  color: var(--text-1);
+  letter-spacing: -0.01em;
   text-align: center;
   flex: 1;
   white-space: nowrap;

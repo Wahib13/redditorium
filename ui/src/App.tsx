@@ -169,11 +169,23 @@ function App() {
           </button>
         )}
         <div className="navbar__brand">
+          <span className="navbar__logo" aria-hidden="true">
+            ↗
+          </span>
           <span className="navbar__title">Trend Engine</span>
-          {isToday && !isSearchMode && <span className="live-badge">live</span>}
+          {isToday && !isSearchMode && (
+            <span className="live-badge">
+              <span className="live-badge__dot" />
+              live
+            </span>
+          )}
         </div>
 
         <form className="navbar__search" onSubmit={handleSearchSubmit}>
+          <svg className="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="7" />
+            <line x1="16.5" y1="16.5" x2="21" y2="21" />
+          </svg>
           <input
             ref={searchInputRef}
             className="search-input"
@@ -218,6 +230,7 @@ function App() {
               />
             </div>
 
+            <p className="sidebar__section-heading">Trending</p>
             <nav className="sidebar__keyword-list" aria-label="Keywords">
               {visibleKeywords?.map((kw) => (
                 <button

@@ -31,25 +31,8 @@ export function ArticleCard({ article, distance, onKeywordClick, selectedKeyword
   const isCollapsed = hasSummary && isTruncated && !expanded;
 
   return (
-    <div className="article-card">
-      {article.image && (
-        <img
-          className="article-card__image"
-          src={article.image}
-          alt=""
-          loading="lazy"
-        />
-      )}
+    <article className="article-card">
       <div className="article-card__body">
-        <div className="article-card__title-row">
-          <span className="article-card__title">{article.title ?? 'Untitled'}</span>
-          {distance !== undefined && (
-            <span className="article-card__distance" title="cosine distance (lower = closer match)">
-              {distance.toFixed(3)}
-            </span>
-          )}
-        </div>
-
         <div className="article-card__meta">
           {article.source_icon_url && (
             <img className="article-card__source-icon" src={article.source_icon_url} alt="" />
@@ -63,29 +46,14 @@ export function ArticleCard({ article, distance, onKeywordClick, selectedKeyword
               day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
             })}
           </time>
+          {distance !== undefined && (
+            <span className="article-card__distance" title="cosine distance (lower = closer match)">
+              {distance.toFixed(3)}
+            </span>
+          )}
         </div>
 
-        {(article.keywords?.length ?? 0) > 0 && (
-          <div className="article-card__keywords">
-            {article.keywords.map((kw) => {
-              const isActive = selectedKeywordId !== undefined && kw.id === selectedKeywordId;
-              const activeClass = isActive ? ' article-card__keyword-tag--active' : '';
-              return onKeywordClick ? (
-                <button
-                  key={kw.id ?? kw.text}
-                  className={`article-card__keyword-tag article-card__keyword-tag--clickable${activeClass}`}
-                  onClick={(e) => { e.stopPropagation(); onKeywordClick(kw.id); }}
-                >
-                  {kw.text}
-                </button>
-              ) : (
-                <span key={kw.id ?? kw.text} className={`article-card__keyword-tag${activeClass}`}>
-                  {kw.text}
-                </span>
-              );
-            })}
-          </div>
-        )}
+        <h3 className="article-card__title">{article.title ?? 'Untitled'}</h3>
 
         {hasSummary && (
           <div
@@ -99,18 +67,55 @@ export function ArticleCard({ article, distance, onKeywordClick, selectedKeyword
           />
         )}
 
-        {(!hasSummary || expanded || !isTruncated) && (
-          <a
-            href={article.url ?? '#'}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="article-card__full-story"
-            onClick={(e) => e.stopPropagation()}
-          >
-            Full story ↗
-          </a>
-        )}
+        <div className="article-card__footer">
+          {(article.keywords?.length ?? 0) > 0 && (
+            <div className="article-card__keywords">
+              {article.keywords.map((kw) => {
+                const isActive = selectedKeywordId !== undefined && kw.id === selectedKeywordId;
+                const activeClass = isActive ? ' article-card__keyword-tag--active' : '';
+                return onKeywordClick ? (
+                  <button
+                    key={kw.id ?? kw.text}
+                    className={`article-card__keyword-tag article-card__keyword-tag--clickable${activeClass}`}
+                    onClick={(e) => { e.stopPropagation(); onKeywordClick(kw.id); }}
+                  >
+                    {kw.text}
+                  </button>
+                ) : (
+                  <span key={kw.id ?? kw.text} className={`article-card__keyword-tag${activeClass}`}>
+                    {kw.text}
+                  </span>
+                );
+              })}
+            </div>
+          )}
+
+          {(!hasSummary || expanded || !isTruncated) && (
+            <a
+              href={article.url ?? '#'}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="article-card__full-story"
+              onClick={(e) => e.stopPropagation()}
+            >
+              Full story
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M7 17 17 7" />
+                <path d="M9 7h8v8" />
+              </svg>
+            </a>
+          )}
+        </div>
       </div>
-    </div>
+
+      {article.image && (
+        <img
+          className="article-card__image"
+          src={article.image}
+          alt=""
+          loading="lazy"
+        />
+      )}
+    </article>
   );
 }
