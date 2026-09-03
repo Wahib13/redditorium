@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { ArticleSearchResult } from '../data-model/keyword';
-import { ArticleCard } from './ArticleCard';
+import { ArticleList } from './ArticleList';
 import { Pagination } from './Pagination';
 import './SearchResults.css';
 
@@ -11,11 +11,10 @@ interface Props {
   results: ArticleSearchResult[];
   isLoading: boolean;
   onClear: () => void;
-  onKeywordClick?: (kwId: number) => void;
-  selectedKeywordId?: number | null;
+  onKeywordClick?: (text: string) => void;
 }
 
-export function SearchResults({ query, results, isLoading, onClear, onKeywordClick, selectedKeywordId }: Props) {
+export function SearchResults({ query, results, isLoading, onClear, onKeywordClick }: Props) {
   const [page, setPage] = useState(0);
 
   const totalPages = Math.ceil(results.length / PAGE_SIZE);
@@ -23,45 +22,45 @@ export function SearchResults({ query, results, isLoading, onClear, onKeywordCli
   const hasNextPage = page + 1 < totalPages;
 
   return (
-    <div className="search-view">
-      <div className="search-view__header">
+    <section className="search-view">
+      <div className="search-view__head">
         <button className="search-view__back" onClick={onClear}>
-          ← Back
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="m15 6-6 6 6 6" />
+          </svg>
+          Back
         </button>
-        <span className="search-view__meta">
-          {isLoading
-            ? 'Searching…'
-            : `${results.length} result${results.length !== 1 ? 's' : ''} for "${query}"`}
-        </span>
+        <div className="search-view__text">
+          <h1 className="search-view__title">“{query}”</h1>
+          <p className="search-view__count">
+            {isLoading
+              ? 'Searching…'
+              : `${results.length} result${results.length !== 1 ? 's' : ''}`}
+          </p>
+        </div>
       </div>
 
       {isLoading ? (
-        <p className="search-view__status">Searching…</p>
+        <div className="loading-container loading-container--inline">
+          <div className="loading-spinner" />
+        </div>
       ) : results.length === 0 ? (
-        <p className="search-view__status">No results for "{query}".</p>
+        <p className="empty-state">Nothing matched “{query}”.</p>
       ) : (
         <>
-          <div className="articles-list">
-            {pageResults.map((article) => (
-              <ArticleCard
-                key={article.id}
-                article={article}
-                distance={article.distance}
-                onKeywordClick={onKeywordClick}
-                selectedKeywordId={selectedKeywordId}
-              />
-            ))}
-          </div>
-          <Pagination
-            page={page}
-            totalPages={totalPages}
-            hasNextPage={hasNextPage}
-            onPrevious={() => setPage((p) => p - 1)}
-            onNext={() => setPage((p) => p + 1)}
-            isLoading={isLoading}
-          />
+          <ArticleList articles={pageResults} onKeywordClick={onKeywordClick} />
+          {totalPages > 1 && (
+            <Pagination
+              page={page}
+              totalPages={totalPages}
+              hasNextPage={hasNextPage}
+              onPrevious={() => setPage((p) => p - 1)}
+              onNext={() => setPage((p) => p + 1)}
+              isLoading={isLoading}
+            />
+          )}
         </>
       )}
-    </div>
+    </section>
   );
 }

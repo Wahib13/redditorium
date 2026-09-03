@@ -1,5 +1,5 @@
 /* ── Design tokens ─────────────────────────────────────────────
-   Single source of truth for color, elevation, and radius.
+   Single source of truth for color, elevation, radius and layout.
    Every component stylesheet consumes these variables, which is
    what makes automatic dark mode work. */
 :root {
@@ -7,32 +7,29 @@
     'Helvetica Neue', Arial, sans-serif;
 
   /* Surfaces */
-  --bg: #f5f6f8;
+  --bg: #f6f7f9;
+  --bg-glass: rgba(246, 247, 249, 0.85);
   --surface: #ffffff;
   --surface-2: #eef0f3;
-  --surface-3: #e4e7ec;
+  --surface-3: #e3e6eb;
 
   /* Text */
-  --text-1: #191b20;
-  --text-2: #5a6170;
-  --text-3: #8f96a3;
+  --text-1: #17191e;
+  --text-2: #5b6270;
+  --text-3: #8b929f;
 
   /* Lines */
-  --border: rgba(25, 27, 32, 0.08);
-  --border-strong: rgba(25, 27, 32, 0.16);
+  --border: rgba(23, 25, 30, 0.08);
+  --border-strong: rgba(23, 25, 30, 0.16);
 
   /* Accent */
   --accent: #4f46e5;
-  --accent-strong: #4338ca;
-  --on-accent: #ffffff;
   --accent-soft: rgba(79, 70, 229, 0.1);
-  --accent-soft-hover: rgba(79, 70, 229, 0.16);
   --accent-text: #4338ca;
 
   /* Status */
   --live: #e11d48;
   --live-soft: rgba(225, 29, 72, 0.1);
-  --danger: #dc2626;
 
   /* Elevation */
   --shadow-1: 0 1px 2px rgba(16, 18, 24, 0.05), 0 1px 1px rgba(16, 18, 24, 0.03);
@@ -41,44 +38,47 @@
   /* Shape */
   --radius-s: 8px;
   --radius-m: 12px;
-  --radius-l: 16px;
+  --radius-l: 14px;
   --radius-pill: 999px;
 
-  /* Glass navbar */
-  --nav-glass: rgba(255, 255, 255, 0.72);
+  /* Layout */
+  --header-h: 56px;
+  --content-w: 880px;
+  --page-x: 24px;
 
   color-scheme: light dark;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #0d0e11;
-    --surface: #16181d;
-    --surface-2: #1e2128;
-    --surface-3: #272b34;
+    --bg: #0e0f12;
+    --bg-glass: rgba(14, 15, 18, 0.85);
+    --surface: #17191e;
+    --surface-2: #1f2229;
+    --surface-3: #292d36;
 
     --text-1: #edeef2;
     --text-2: #9aa1ae;
-    --text-3: #666e7c;
+    --text-3: #6b7280;
 
     --border: rgba(235, 238, 245, 0.08);
     --border-strong: rgba(235, 238, 245, 0.17);
 
     --accent: #6366f1;
-    --accent-strong: #7c80f4;
-    --on-accent: #ffffff;
     --accent-soft: rgba(129, 140, 248, 0.14);
-    --accent-soft-hover: rgba(129, 140, 248, 0.22);
     --accent-text: #a5b4fc;
 
     --live: #fb7185;
     --live-soft: rgba(251, 113, 133, 0.12);
-    --danger: #f87171;
 
     --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.35);
     --shadow-2: 0 8px 24px rgba(0, 0, 0, 0.45), 0 2px 6px rgba(0, 0, 0, 0.3);
+  }
+}
 
-    --nav-glass: rgba(18, 19, 24, 0.72);
+@media (max-width: 560px) {
+  :root {
+    --page-x: 16px;
   }
 }
 
@@ -90,9 +90,7 @@
 }
 
 html,
-body,
-#root {
-  height: 100%;
+body {
   margin: 0;
 }
 
