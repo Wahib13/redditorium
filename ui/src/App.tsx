@@ -1,30 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { DayCycler } from './components/DayCycler';
-import { ArticleCard } from './components/ArticleCard';
+import { DayHeader } from './components/DayHeader';
+import { TopicBar } from './components/TopicBar';
+import { ArticleList } from './components/ArticleList';
 import { SearchResults } from './components/SearchResults';
 import { useKeywords } from './hooks/useKeywords';
 import { useKeywordUpdates } from './hooks/useKeywordUpdates';
 import { useSearch } from './hooks/useSearch';
-import type { Keyword } from './data-model/keyword';
+import type { Article, ArticleSearchResult, Keyword } from './data-model/keyword';
+import { dayTitle, daySubtitle, shiftDate, utcISODate } from './lib/dates';
 import './App.css';
 
-// The server buckets articles by the UTC calendar day (see api.keywords.utc_today),
-// so the frontend must reason about "today" and date navigation in UTC too.
-function utcISODate(d: Date): string {
-  return d.toISOString().slice(0, 10);
-}
-
-function shiftDate(dateStr: string, deltaDays: number): string {
-  const d = new Date(dateStr + 'T00:00:00Z');
-  d.setUTCDate(d.getUTCDate() + deltaDays);
-  return utcISODate(d);
-}
-
-function formatDateLabel(dateStr: string, todayStr: string): string {
-  if (dateStr === todayStr) return 'Today';
-  const d = new Date(dateStr + 'T00:00:00Z');
-  return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC' });
-}
+/** Keywords with fewer articles than this are hidden from the topic bar. */
+const MIN_ARTICLES = 2;
+/** How many articles each topic shows in the "All" overview. */
+const PREVIEW_PER_TOPIC = 4;
 
 function App() {
   // Recomputed on an interval so a tab left open past UTC midnight rolls over.
@@ -37,15 +26,9 @@ function App() {
   const [selectedDate, setSelectedDate] = useState(today);
   const isToday = selectedDate === today;
 
-  const [selectedKeywordId, setSelectedKeywordId] = useState<number | null>(null);
-  const [selectedSourceName, setSelectedSourceName] = useState<string | null>(null);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-
-  // Date-keyed cache: WS updates write to cache[today]; navigation reads cache[selectedDate].
-  // This ensures live updates never interfere with viewing a different date.
-  const [keywordsCache, setKeywordsCache] = useState<Map<string, Keyword[]>>(new Map());
-  const seededDates = useRef<Set<string>>(new Set());
-  const lastAutoSelectDate = useRef<string | null>(null);
+  // null = the "All" overview
+  const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
+  const [selectedSource, setSelectedSource] = useState<string | null>(null);
 
   const [inputValue, setInputValue] = useState('');
   const [submittedQuery, setSubmittedQuery] = useState('');
@@ -53,46 +36,28 @@ function App() {
 
   const { data: fetchedKeywords, isLoading, isError } = useKeywords(selectedDate);
 
-  // Reset source filter when navigating dates
-  useEffect(() => {
-    setSelectedSourceName(null);
-  }, [selectedDate]);
-
-  // Seed cache from React Query fetch (once per date — WS takes over afterwards)
-  useEffect(() => {
-    if (!fetchedKeywords || seededDates.current.has(selectedDate)) return;
-    seededDates.current.add(selectedDate);
-    setKeywordsCache((prev) => new Map(prev).set(selectedDate, fetchedKeywords));
-  }, [fetchedKeywords, selectedDate]);
-
-  // Auto-select first visible keyword whenever we first arrive at a date's data
-  const liveKeywords = keywordsCache.get(selectedDate);
-  useEffect(() => {
-    if (!liveKeywords || lastAutoSelectDate.current === selectedDate) return;
-    lastAutoSelectDate.current = selectedDate;
-    const visible = liveKeywords.filter((k) => k.articles.length >= 2);
-    if (visible.length > 0) {
-      setSelectedKeywordId(visible[0].id);
-    }
-  }, [liveKeywords, selectedDate]);
-
-  // WS updates today's cache entry only — never touches other dates
-  const handleWsUpdate = useCallback((keywords: Keyword[]) => {
-    setKeywordsCache((prev) => new Map(prev).set(today, keywords));
-  }, [today]);
-
+  // Live updates only ever write today's entry; any other date reads straight from the fetch.
+  // Navigating to a past date therefore can never be overwritten by a WebSocket push.
+  const [liveCache, setLiveCache] = useState<Map<string, Keyword[]>>(new Map());
+  const handleWsUpdate = useCallback(
+    (keywords: Keyword[]) => setLiveCache((prev) => new Map(prev).set(today, keywords)),
+    [today],
+  );
   useKeywordUpdates(handleWsUpdate);
 
-  const { data: searchResults = [] as import('./data-model/keyword').ArticleSearchResult[], isFetching: isSearching } = useSearch(submittedQuery);
+  const keywords = liveCache.get(selectedDate) ?? fetchedKeywords;
 
+  const { data: searchResults = [] as ArticleSearchResult[], isFetching: isSearching } = useSearch(submittedQuery);
   const isSearchMode = submittedQuery.trim().length > 0;
 
-  const visibleKeywords = liveKeywords?.filter((kw) => kw.articles.length >= 2);
+  const visibleKeywords = useMemo(
+    () => (keywords ?? []).filter((kw) => kw.articles.length >= MIN_ARTICLES),
+    [keywords],
+  );
 
-  const availableSources = useMemo(() => {
-    if (!liveKeywords) return [];
+  const sources = useMemo(() => {
     const seen = new Map<string, { name: string; icon_url: string | null }>();
-    for (const kw of liveKeywords) {
+    for (const kw of keywords ?? []) {
       for (const a of kw.articles) {
         if (a.source_name && !seen.has(a.source_name)) {
           seen.set(a.source_name, { name: a.source_name, icon_url: a.source_icon_url });
@@ -100,19 +65,35 @@ function App() {
       }
     }
     return [...seen.values()];
-  }, [liveKeywords]);
+  }, [keywords]);
 
-  function goOlder() {
-    setSelectedDate((d) => shiftDate(d, -1));
-  }
+  const totalArticles = useMemo(() => {
+    const ids = new Set<number>();
+    for (const kw of keywords ?? []) for (const a of kw.articles) ids.add(a.id);
+    return ids.size;
+  }, [keywords]);
 
-  function goNewer() {
-    setSelectedDate((d) => shiftDate(d, 1));
+  const matchesSource = (a: Article) => selectedSource === null || a.source_name === selectedSource;
+
+  const tabs = visibleKeywords.map((kw) => ({
+    text: kw.text,
+    count: kw.articles.filter(matchesSource).length,
+  }));
+  const allCount = tabs.reduce((n, t) => n + t.count, 0);
+
+  // Looked up in the full list so single-article keywords (hidden from the bar) still open when clicked.
+  const selectedKeyword = selectedTopic === null ? null : (keywords?.find((kw) => kw.text === selectedTopic) ?? null);
+
+  function selectDate(next: string) {
+    setSelectedDate(next);
+    setSelectedTopic(null);
+    setSelectedSource(null);
   }
 
   function handleSearchSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSubmittedQuery(inputValue.trim());
+    window.scrollTo({ top: 0 });
   }
 
   function clearSearch() {
@@ -121,67 +102,86 @@ function App() {
     searchInputRef.current?.focus();
   }
 
-  // Look up from full list so single-article keywords (hidden from sidebar) still work when clicked
-  const selectedKeyword =
-    liveKeywords?.find((kw) => kw.id === selectedKeywordId) ?? visibleKeywords?.[0] ?? null;
-
-  function handleKeywordClick(kwId: number) {
-    setSelectedKeywordId(kwId);
+  function selectTopic(text: string | null) {
+    setSelectedTopic(text);
     setSubmittedQuery('');
     setInputValue('');
-    setIsSidebarOpen(false);
+    window.scrollTo({ top: 0 });
   }
 
-  if (isError) {
-    return (
-      <div className="app">
-        <div className="error-container">
-          <h2>Failed to load keywords</h2>
-          <p>Please try again later.</p>
-        </div>
-      </div>
-    );
-  }
+  const dateTitle = dayTitle(selectedDate, today);
+  const dateSubtitle = keywords
+    ? [
+        daySubtitle(selectedDate, today),
+        `${totalArticles} ${totalArticles === 1 ? 'article' : 'articles'}`,
+        ...(sources.length > 0 ? [`${sources.length} ${sources.length === 1 ? 'source' : 'sources'}`] : []),
+      ].join(' · ')
+    : daySubtitle(selectedDate, today);
 
-  if (isLoading || !liveKeywords) {
-    return (
-      <div className="app">
-        <div className="loading-container">
-          <div className="loading-spinner"></div>
-          <p className="loading-text">Loading…</p>
+  function renderArticles() {
+    if (isLoading || !keywords) {
+      return (
+        <div className="loading-container loading-container--inline">
+          <div className="loading-spinner" />
         </div>
-      </div>
-    );
+      );
+    }
+
+    if (visibleKeywords.length === 0) {
+      return <p className="empty-state">No articles for this day yet.</p>;
+    }
+
+    if (selectedKeyword) {
+      const articles = selectedKeyword.articles.filter(matchesSource);
+      return articles.length > 0 ? (
+        <ArticleList articles={articles} hideKeyword={selectedKeyword.text} onKeywordClick={selectTopic} />
+      ) : (
+        <p className="empty-state">
+          Nothing from {selectedSource} in <span className="empty-state__topic">{selectedKeyword.text}</span>.
+        </p>
+      );
+    }
+
+    const sections = visibleKeywords
+      .map((kw) => ({ kw, articles: kw.articles.filter(matchesSource) }))
+      .filter((s) => s.articles.length > 0);
+
+    if (sections.length === 0) {
+      return <p className="empty-state">Nothing from {selectedSource} on this day.</p>;
+    }
+
+    return sections.map(({ kw, articles }) => (
+      <section className="topic-section" key={kw.text}>
+        <div className="topic-section__head">
+          <h2 className="topic-section__title">{kw.text}</h2>
+          <span className="topic-section__count">{articles.length}</span>
+          {articles.length > PREVIEW_PER_TOPIC && (
+            <button className="topic-section__more" onClick={() => selectTopic(kw.text)}>
+              View all
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="m9 6 6 6-6 6" />
+              </svg>
+            </button>
+          )}
+        </div>
+        <ArticleList
+          articles={articles.slice(0, PREVIEW_PER_TOPIC)}
+          hideKeyword={kw.text}
+          onKeywordClick={selectTopic}
+        />
+      </section>
+    ));
   }
 
   return (
     <div className="app">
-      <header className="navbar">
-        {!isSearchMode && (
-          <button
-            className="navbar__hamburger"
-            onClick={() => setIsSidebarOpen((o) => !o)}
-            aria-label="Toggle menu"
-          >
-            <span className="navbar__hamburger-bar" />
-            <span className="navbar__hamburger-bar" />
-            <span className="navbar__hamburger-bar" />
-          </button>
-        )}
-        <div className="navbar__brand">
-          <span className="navbar__logo" aria-hidden="true">
-            ↗
-          </span>
-          <span className="navbar__title">Trend Engine</span>
-          {isToday && !isSearchMode && (
-            <span className="live-badge">
-              <span className="live-badge__dot" />
-              live
-            </span>
-          )}
-        </div>
+      <header className="header">
+        <a className="header__brand" href="/" onClick={(e) => { e.preventDefault(); clearSearch(); selectDate(today); window.scrollTo({ top: 0 }); }}>
+          <span className="header__logo" aria-hidden="true">↗</span>
+          <span className="header__title">Trend Engine</span>
+        </a>
 
-        <form className="navbar__search" onSubmit={handleSearchSubmit}>
+        <form className="header__search" onSubmit={handleSearchSubmit} role="search">
           <svg className="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
             <circle cx="11" cy="11" r="7" />
             <line x1="16.5" y1="16.5" x2="21" y2="21" />
@@ -202,113 +202,46 @@ function App() {
         </form>
       </header>
 
-      {isSearchMode ? (
-        <div className="app-body">
+      <main className="page">
+        {isError ? (
+          <div className="empty-state empty-state--error">
+            <h2>Couldn’t load articles</h2>
+            <p>Check that the API is running, then reload.</p>
+          </div>
+        ) : isSearchMode ? (
           <SearchResults
             key={submittedQuery}
             query={submittedQuery}
             results={searchResults}
             isLoading={isSearching}
             onClear={clearSearch}
-            onKeywordClick={handleKeywordClick}
-            selectedKeywordId={selectedKeywordId}
+            onKeywordClick={selectTopic}
           />
-        </div>
-      ) : (
-        <div className="app-body">
-          {isSidebarOpen && (
-            <div className="sidebar-overlay" onClick={() => setIsSidebarOpen(false)} />
-          )}
-          <aside className={`sidebar${isSidebarOpen ? ' sidebar--open' : ''}`}>
-            <div className="sidebar__day-nav">
-              <DayCycler
-                label={formatDateLabel(selectedDate, today)}
-                hasNewer={!isToday}
-                hasOlder={true}
-                onNewer={goNewer}
-                onOlder={goOlder}
+        ) : (
+          <>
+            <DayHeader
+              title={dateTitle}
+              subtitle={dateSubtitle}
+              isLive={isToday}
+              hasNewer={!isToday}
+              onNewer={() => selectDate(shiftDate(selectedDate, 1))}
+              onOlder={() => selectDate(shiftDate(selectedDate, -1))}
+            />
+            {keywords && visibleKeywords.length > 0 && (
+              <TopicBar
+                tabs={tabs}
+                allCount={allCount}
+                selected={selectedKeyword ? selectedKeyword.text : null}
+                onSelect={selectTopic}
+                sources={sources}
+                selectedSource={selectedSource}
+                onSelectSource={setSelectedSource}
               />
-            </div>
-
-            <p className="sidebar__section-heading">Trending</p>
-            <nav className="sidebar__keyword-list" aria-label="Keywords">
-              {visibleKeywords?.map((kw) => (
-                <button
-                  key={kw.id ?? kw.text}
-                  className={`keyword-item${selectedKeywordId === kw.id ? ' keyword-item--active' : ''}`}
-                  onClick={() => { setSelectedKeywordId(kw.id); setIsSidebarOpen(false); }}
-                >
-                  <span className="keyword-item__text">{kw.text}</span>
-                  <span className="keyword-item__count">{kw.articles.length}</span>
-                </button>
-              ))}
-              {visibleKeywords?.length === 0 && (
-                <p className="main-content__empty">No keywords for this day.</p>
-              )}
-            </nav>
-
-            {availableSources.length > 0 && (
-              <div className="sidebar__sources">
-                <p className="sidebar__sources-heading">Sources</p>
-                <button
-                  className={`source-item${selectedSourceName === null ? ' source-item--active' : ''}`}
-                  onClick={() => { setSelectedSourceName(null); setIsSidebarOpen(false); }}
-                >
-                  All
-                </button>
-                {availableSources.map((src) => (
-                  <button
-                    key={src.name}
-                    className={`source-item${selectedSourceName === src.name ? ' source-item--active' : ''}`}
-                    onClick={() => { setSelectedSourceName((prev) => prev === src.name ? null : src.name); setIsSidebarOpen(false); }}
-                  >
-                    {src.icon_url && <img className="source-item__icon" src={src.icon_url} alt="" />}
-                    {src.name}
-                  </button>
-                ))}
-              </div>
             )}
-          </aside>
-
-          <main className="main-content">
-            {selectedKeyword ? (
-              <div className="articles-list">
-                {selectedKeyword.articles
-                  .filter((a) => selectedSourceName === null || a.source_name === selectedSourceName)
-                  .map((article) => (
-                    <ArticleCard key={article.id} article={article} onKeywordClick={handleKeywordClick} selectedKeywordId={selectedKeywordId} />
-                  ))}
-              </div>
-            ) : (
-              <p className="main-content__empty">Select a keyword to see articles.</p>
-            )}
-          </main>
-
-          {availableSources.length > 0 && (
-            <aside className="source-panel">
-              <p className="source-panel__heading">Sources</p>
-              <button
-                className={`source-item${selectedSourceName === null ? ' source-item--active' : ''}`}
-                onClick={() => setSelectedSourceName(null)}
-              >
-                All
-              </button>
-              {availableSources.map((src) => (
-                <button
-                  key={src.name}
-                  className={`source-item${selectedSourceName === src.name ? ' source-item--active' : ''}`}
-                  onClick={() => setSelectedSourceName((prev) => prev === src.name ? null : src.name)}
-                >
-                  {src.icon_url && (
-                    <img className="source-item__icon" src={src.icon_url} alt="" />
-                  )}
-                  {src.name}
-                </button>
-              ))}
-            </aside>
-          )}
-        </div>
-      )}
+            {renderArticles()}
+          </>
+        )}
+      </main>
     </div>
   );
 }
