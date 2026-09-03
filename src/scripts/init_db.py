@@ -3,7 +3,7 @@ from pathlib import Path
 
 from db.connection import get_session
 from db.initialise import initialise_database
-from db.models import Source, Feed, Topic
+from db.models import Source, Feed, Topic, Keyword
 
 SEEDS_PATH = Path(__file__).parent.parent / "seeds.yaml"
 
@@ -13,6 +13,11 @@ if __name__ == "__main__":
 
     topic_names = {feed["topic"] for source in seeds["sources"] for feed in source["feeds"]}
     topics = {name: Topic(name=name) for name in topic_names}
+
+    # One Keyword per topic so articles are browsable by topic immediately,
+    # before any (future) extraction runs. Lowercased to match the keyword
+    # normalisation used everywhere else.
+    topic_keywords = [Keyword(text=name.lower()) for name in topic_names]
 
     sources = []
     for source_data in seeds["sources"]:
@@ -28,4 +33,4 @@ if __name__ == "__main__":
         sources.append(source)
 
     with get_session() as session:
-        initialise_database(session, [*topics.values(), *sources])
+        initialise_database(session, [*topics.values(), *topic_keywords, *sources])

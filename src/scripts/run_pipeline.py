@@ -1,6 +1,7 @@
 import argparse
 import asyncio
 import logging
+import time
 
 import httpx
 from keybert import KeyBERT
@@ -8,10 +9,10 @@ from keybert import KeyBERT
 import config
 from adapters.embeddings import SentenceTransformerClient
 from db.connection import get_session
-from db.models import Article
-from pipeline.embeddings import embed_article
-from pipeline.feed_data import stream_rss_entries
-from pipeline.keywords import extract_keywords_keybert
+from db.models import Article, Feed, Source
+from pipeline.embeddings import embed_articles_batch
+from pipeline.feed_data import collect_feed_articles
+from pipeline.keywords import extract_keywords_batch, link_topic_keywords
 
 config.setup_logging()
 logger = logging.getLogger(__name__)
@@ -20,46 +21,56 @@ _client: SentenceTransformerClient | None = None
 _kw_model: KeyBERT | None = None
 
 
-def _run_for_article(article_id: int, notify_fn: callable) -> int:
-    """Thread worker. Creates its own session."""
-    with get_session() as session:
-        article = session.query(Article).filter_by(id=article_id).first()
-        if not article:
-            return 0
-        embed_article(article, session, _client)
-        return extract_keywords_keybert(article, session, _kw_model, on_linked=notify_fn, embed_client=_client)
-
-
 def _notify_api(api_base: str) -> None:
-    """Notify the API that an article was processed. Best-effort as API may not be running."""
+    """Notify the API that articles were processed. Best-effort as API may not be running."""
     try:
         httpx.post(f"{api_base}/internal/articles-processed", timeout=5)
     except Exception as exc:
         logger.warning(f"could not notify API: {exc}")
 
 
-async def keyword_worker(queue: asyncio.Queue, api_base: str) -> None:
-    while True:
-        article_id = await queue.get()
-        try:
-            await asyncio.to_thread(_run_for_article, article_id, lambda: _notify_api(api_base))
-        except Exception as exc:
-            logger.exception(f"failed to process article {article_id}: {exc}")
-        finally:
-            queue.task_done()
-
-
 async def main(api_base: str) -> None:
-    global _client, _kw_model
-    _client = SentenceTransformerClient()
-    _kw_model = KeyBERT(model=_client.model)
+    """fetch articles from each feed and insert them once"""
+    started = time.monotonic()
 
-    queue = asyncio.Queue()
     with get_session() as session:
-        worker = asyncio.create_task(keyword_worker(queue, api_base))
-        await stream_rss_entries(session, on_new_article=queue.put)
-        await queue.join()
-        worker.cancel()
+        feeds: list[Feed] = [feed for source in session.query(Source).all() for feed in source.feeds]
+
+        seen_urls: set[str] = {url for (url,) in session.query(Article.url).all()}
+
+        feed_awaitables = [collect_feed_articles(feed, seen_urls) for feed in feeds]
+
+        batches = await asyncio.gather(
+            *feed_awaitables
+        )
+
+        new_articles = [
+            article
+            for batch in batches
+            for article in batch
+        ]
+
+        session.add_all(new_articles)
+        session.flush()
+        linked = link_topic_keywords(session, new_articles)
+
+        extracted = 0
+        embedded = 0
+        if new_articles:
+            embed_client = SentenceTransformerClient()
+            kw_model = KeyBERT(model=embed_client.model)
+            extracted = extract_keywords_batch(session, new_articles, kw_model, embed_client)
+            embedded = embed_articles_batch(new_articles, embed_client)
+
+        session.commit()
+
+    elapsed = time.monotonic() - started
+    logger.info(
+        f"inserted {len(new_articles)} new articles, linked {linked} topic keywords, "
+        f"extracted {extracted} keyword links, embedded {embedded} articles in {elapsed:.2f}s"
+    )
+
+    _notify_api(api_base)
 
 
 if __name__ == "__main__":

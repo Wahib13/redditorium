@@ -51,56 +51,43 @@ def _extract_image(entry: Any) -> str | None:
     return None
 
 
-def save_new_article(
-        session, feed: Feed, url: str, title: str | None, summary: str | None = None,
-        image: str | None = None, published: datetime.datetime | None = None,
-) -> "Article | None":
-    """Persist a new article if the URL hasn't been seen. Returns saved Article or None if duplicate."""
-    if session.query(Article).filter_by(url=url).first():
+def _build_article(feed: Feed, entry: Any) -> "Article | None":
+    """Turn a feedparser entry into an unsaved Article, or None if it lacks a url/title."""
+    url = entry.get("link")
+    title = entry.get("title")
+    if not url or not title:
         return None
-    article = Article(
-        url=url, title=title, summary=summary, image=image,
-        source_topic=feed.topic.name, feed=feed,
-        created=published or datetime.datetime.utcnow(),
+    return Article(
+        url=url,
+        title=title,
+        summary=_extract_summary(entry),
+        image=_extract_image(entry),
+        source_topic=feed.topic.name,
+        feed=feed,
+        created=_extract_published(entry) or datetime.datetime.utcnow(),
     )
-    session.add(article)
-    session.commit()
-    logger.info(f"saved article {article.id}: {title}")
-    return article
 
 
-async def process_feed(
-        session,
+async def collect_feed_articles(
         feed: Feed,
-        on_new_article: Callable[[int], Awaitable[None]],
+        seen_urls: set[str],
         parse_fn: Callable[[str], Any] = feedparser.parse,
-) -> None:
-    # parse_fn does blocking network I/O; run it off the event loop so keyword
-    # extraction can proceed while feeds download.
+) -> list["Article"]:
+    """Parse a feed and return unsaved Articles for URLs not already in seen_urls.
+
+    Does not touch the session; dedup against seen_urls is caller-managed so a
+    single run can catch the same story appearing across feeds. Mutates seen_urls.
+    """
     feed_data = await asyncio.to_thread(parse_fn, feed.url)
     logger.info(f"number of entries found: {len(feed_data.entries)}")
+    articles: list[Article] = []
     for entry in feed_data.entries:
         url = entry.get("link")
-        title = entry.get("title")
-        if not url or not title:
+        if not url or url in seen_urls:
             continue
-        summary = _extract_summary(entry)
-        image = _extract_image(entry)
-        published = _extract_published(entry)
-        article = save_new_article(session, feed, url, title, summary, image, published)
-        if article:
-            await on_new_article(article.id)
-
-
-async def stream_rss_entries(
-        session,
-        on_new_article: Callable[[int], Awaitable[None]],
-        parse_fn: Callable[[str], Any] = feedparser.parse,
-) -> None:
-    """Fetch all feeds. Calls on_new_article(article_id) for each new article saved."""
-    sources = session.query(Source).all()
-    for source in sources:
-        logger.info(f"running for source: {source.id}: {source.name}")
-        for feed in source.feeds:
-            logger.info(f"running for feed in: {source.name} - {feed.url}")
-            await process_feed(session, feed, on_new_article, parse_fn)
+        article = _build_article(feed, entry)
+        if article is None:
+            continue
+        seen_urls.add(url)
+        articles.append(article)
+    return articles

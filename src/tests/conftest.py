@@ -11,6 +11,7 @@ from db.initialise import initialise_database
 from db.models import Article, Feed, Source, Topic, Keyword
 
 SAMPLE_ARTICLE_TEXT = "sample text"
+SAMPLE_ARTICLE_SUMMARY = "a short lede summarising the story"
 
 
 @pytest.fixture
@@ -41,14 +42,16 @@ def fake_articles(fake_source):
             url="https://example.com/article1",
             feed=fake_source.feeds[0],
             source_topic="TECHNOLOGY",
-            text=SAMPLE_ARTICLE_TEXT
+            text=SAMPLE_ARTICLE_TEXT,
+            summary=SAMPLE_ARTICLE_SUMMARY,
         ),
         Article(
             title="Python is cool, but my favorite language is Sarcasm",
             url="https://example.com/article2",
             feed=fake_source.feeds[0],
             source_topic="POLITICS",
-            text=SAMPLE_ARTICLE_TEXT
+            text=SAMPLE_ARTICLE_TEXT,
+            summary=SAMPLE_ARTICLE_SUMMARY,
         ),
     ]
 

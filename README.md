@@ -73,9 +73,6 @@ cd src/
 # Full pipeline: fetch feeds → embed → extract keywords → notify UI live
 python -m scripts.run_pipeline --api-base http://localhost:8081
 
-# Or run individual steps
-python -m scripts.fetch_feed_data   # fetch RSS entries
-python -m scripts.fetch_content     # download full article text
 ```
 
 The pipeline notifies the API after each keyword link. If the API is running, connected browsers update in real time via WebSocket.
