@@ -1,4 +1,4 @@
-import { useEffect, useImperativeHandle, useRef, type Ref } from 'react';
+import { useEffect, useImperativeHandle, useMemo, useRef, type Ref, type RefObject } from 'react';
 import type { KeywordDay } from '../hooks/useKeywordDays';
 import { DaySection } from './DaySection';
 import './Timelines.css';
@@ -8,30 +8,53 @@ export interface TimelinesHandle {
   scrollToTop: () => void;
 }
 
-interface Props {
+interface PanelProps {
+  days: KeywordDay[];
+  /** Restrict every timeline to one source (a source page); null = every source */
+  source: string | null;
+  today: string;
+  isTopic: (text: string) => boolean;
+  onKeywordClick: (text: string) => void;
+  onSourceClick?: (sourceName: string) => void;
+}
+
+/**
+ * Scroll-driven collapse of the profile header, shared by every panel. `progress` (0…1) moves
+ * with the scroll *delta* of whichever panel is visible, so scrolling down shrinks the header
+ * and scrolling up grows it again from anywhere, and swiping between panels never changes it.
+ */
+interface Collapse {
+  /** Pixels of scrolling that take the header from fully shown to fully collapsed. */
+  range: number;
+  progressRef: RefObject<number>;
+  onChange: (progress: number) => void;
+}
+
+interface Props extends PanelProps {
   ref?: Ref<TimelinesHandle>;
   /** Timeline 0 is "All"; timeline i + 1 is topics[i]. */
   topics: string[];
   /** null = "All" */
   active: string | null;
   onActiveChange: (topic: string | null) => void;
-  days: KeywordDay[];
-  today: string;
-  /** Whether the active timeline may request another day when its end scrolls into view. */
-  canLoadMore: boolean;
-  onLoadMore: () => void;
-  /** Present when auto-loading has paused and the user must ask for older days. */
-  onShowOlder?: () => void;
-  isTopic: (text: string) => boolean;
-  onKeywordClick: (text: string) => void;
+  /** Enables the collapsing header: how many px of scroll collapse it fully. */
+  collapseRange?: number;
+  /** Receives the collapse progress (0…1) whenever it changes. */
+  onCollapseChange?: (progress: number) => void;
 }
 
 /**
  * Horizontal scroll-snap strip with one full-width panel per topic. Each panel is its own
  * vertical scroller through the shared list of days, so every topic keeps its own position.
  */
-export function Timelines({ ref, topics, active, onActiveChange, ...panelProps }: Props) {
+export function Timelines({ ref, topics, active, onActiveChange, collapseRange, onCollapseChange, ...panelProps }: Props) {
   const names: (string | null)[] = [null, ...topics];
+
+  const progressRef = useRef(0);
+  const collapse = useMemo<Collapse | undefined>(
+    () => (collapseRange && onCollapseChange ? { range: collapseRange, progressRef, onChange: onCollapseChange } : undefined),
+    [collapseRange, onCollapseChange],
+  );
   // Falls back to "All" if the active topic is not (or no longer) in the list.
   const activeIndex = Math.max(0, names.indexOf(active));
 
@@ -53,16 +76,21 @@ export function Timelines({ ref, topics, active, onActiveChange, ...panelProps }
     [activeIndex],
   );
 
-  // activeIndex changed from outside (tab, topic label, brand, or the topic list growing
-  // around the active topic): bring the strip there. Changes that came from a swipe were
-  // reported by handleScroll and need no scrolling.
+  // activeIndex changed from outside (tab, topic label, brand): bring the strip there.
+  // Changes that came from a swipe were reported by handleScroll and need no scrolling.
   useEffect(() => {
     const el = scrollerRef.current;
     if (!el || reportedRef.current === activeIndex) return;
-    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    targetRef.current = activeIndex;
-    el.scrollTo({ left: activeIndex * el.clientWidth, behavior: mountedRef.current && !reduceMotion ? 'smooth' : 'instant' });
+    const left = activeIndex * el.clientWidth;
+    const smooth = mountedRef.current && !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     mountedRef.current = true;
+    // Already there (e.g. index 0 on mount): no scroll event will follow, so don't wait for one.
+    if (Math.abs(el.scrollLeft - left) < 1) {
+      reportedRef.current = activeIndex;
+      return;
+    }
+    targetRef.current = activeIndex;
+    el.scrollTo({ left, behavior: smooth ? 'smooth' : 'instant' });
   }, [activeIndex]);
 
   function handleScroll() {
@@ -90,49 +118,70 @@ export function Timelines({ ref, topics, active, onActiveChange, ...panelProps }
       onPointerDown={cancelTarget}
     >
       {names.map((topic, i) => (
-        <Timeline key={topic ?? '\0all'} index={i} topic={topic} active={i === activeIndex} {...panelProps} />
+        <Timeline key={topic ?? '\0all'} index={i} topic={topic} active={i === activeIndex} collapse={collapse} {...panelProps} />
       ))}
     </main>
   );
 }
 
-interface TimelineProps {
+interface TimelineProps extends PanelProps {
   index: number;
   topic: string | null;
   active: boolean;
-  days: KeywordDay[];
-  today: string;
-  canLoadMore: boolean;
-  onLoadMore: () => void;
-  onShowOlder?: () => void;
-  isTopic: (text: string) => boolean;
-  onKeywordClick: (text: string) => void;
+  collapse?: Collapse;
 }
 
-function Timeline({ index, topic, active, days, today, canLoadMore, onLoadMore, onShowOlder, isTopic, onKeywordClick }: TimelineProps) {
+/** scrollTop clamped to the scrollable range, so overscroll bounce contributes no delta. */
+function clampedTop(el: HTMLElement) {
+  return Math.min(Math.max(el.scrollTop, 0), Math.max(el.scrollHeight - el.clientHeight, 0));
+}
+
+function Timeline({
+  index,
+  topic,
+  active,
+  days,
+  source,
+  today,
+  isTopic,
+  onKeywordClick,
+  onSourceClick,
+  collapse,
+}: TimelineProps) {
   const rootRef = useRef<HTMLElement>(null);
-  const sentinelRef = useRef<HTMLDivElement>(null);
+  const lastTopRef = useRef(0);
+  const allLoaded = days.every((day) => !day.isPending);
 
-  // Only the visible timeline drives loading; the day list is shared, so the others follow.
-  // The observer is rebuilt whenever loading finishes, which re-checks a still-visible sentinel.
+  // Becoming the visible panel: keep the header exactly where it is. A panel sitting nearer its
+  // top than the header's collapse would allow is nudged down, so the content stays flush with
+  // the header and there is room to scroll up and grow it back.
   useEffect(() => {
-    if (!active || !canLoadMore) return;
-    const root = rootRef.current;
-    const target = sentinelRef.current;
-    if (!root || !target) return;
+    if (!active) return;
+    const el = rootRef.current;
+    if (!el) return;
+    if (collapse) {
+      const wanted = collapse.progressRef.current * collapse.range;
+      if (el.scrollTop < wanted) el.scrollTop = wanted;
+    }
+    lastTopRef.current = clampedTop(el);
+  }, [active, collapse]);
 
-    let fired = false;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (fired || !entries.some((e) => e.isIntersecting)) return;
-        fired = true;
-        onLoadMore();
-      },
-      { root, rootMargin: '0px 0px 600px 0px' },
-    );
-    observer.observe(target);
-    return () => observer.disconnect();
-  }, [active, canLoadMore, onLoadMore]);
+  function handleScroll() {
+    if (!active) return;
+    const el = rootRef.current;
+    if (!el) return;
+    const top = clampedTop(el);
+    const delta = top - lastTopRef.current;
+    lastTopRef.current = top;
+    if (!collapse || delta === 0) return;
+
+    const { range, progressRef, onChange } = collapse;
+    // Never more collapsed than the scroll position allows, so the content top stays flush with the header.
+    const next = Math.min(Math.max(progressRef.current + delta / range, 0), 1, top / range);
+    if (next === progressRef.current) return;
+    progressRef.current = next;
+    onChange(next);
+  }
 
   return (
     <section
@@ -143,16 +192,33 @@ function Timeline({ index, topic, active, days, today, canLoadMore, onLoadMore, 
       aria-labelledby={`topic-tab-${index}`}
       tabIndex={active ? 0 : -1}
       inert={!active}
+      onScroll={handleScroll}
     >
       <div className="timeline__inner">
         {days.map((day) => (
-          <DaySection key={day.date} day={day} topic={topic} today={today} isTopic={isTopic} onKeywordClick={onKeywordClick} />
+          <DaySection
+            key={day.date}
+            day={day}
+            topic={topic}
+            source={source}
+            today={today}
+            isTopic={isTopic}
+            onKeywordClick={onKeywordClick}
+            onSourceClick={onSourceClick}
+          />
         ))}
-        <div className="timeline__foot" ref={sentinelRef}>
-          {onShowOlder && (
-            <button className="timeline__older" onClick={onShowOlder}>
-              Show older days
-            </button>
+        <div className="timeline__foot">
+          {allLoaded && (
+            <p className="timeline__caught-up">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="9" />
+                <path d="m8.5 12.5 2.5 2.5 4.5-5" />
+              </svg>
+              You’re all caught up
+              <span className="timeline__caught-up-sub">
+                That’s the last {days.length} {days.length === 1 ? 'day' : 'days'}
+              </span>
+            </p>
           )}
         </div>
       </div>

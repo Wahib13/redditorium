@@ -9,15 +9,18 @@ interface Props {
   day: KeywordDay;
   /** null = the merged "All" timeline */
   topic: string | null;
+  /** Restrict to one source (a source page); null = every source */
+  source: string | null;
   today: string;
   /** Which keywords have a timeline; only those are shown as labels on rows. */
   isTopic: (text: string) => boolean;
   onKeywordClick: (text: string) => void;
+  onSourceClick?: (sourceName: string) => void;
 }
 
 /** One day inside a topic timeline: a sticky date header and that day's articles for the topic. */
-export function DaySection({ day, topic, today, isTopic, onKeywordClick }: Props) {
-  const articles = useMemo(() => articlesFor(day.keywords, topic), [day.keywords, topic]);
+export function DaySection({ day, topic, source, today, isTopic, onKeywordClick, onSourceClick }: Props) {
+  const articles = useMemo(() => articlesFor(day.keywords, topic, source), [day.keywords, topic, source]);
   const isToday = day.date === today;
   const title = dayTitle(day.date, today);
   const showSkeleton = day.isPending || (day.isError && day.isFetching);
@@ -54,31 +57,29 @@ export function DaySection({ day, topic, today, isTopic, onKeywordClick }: Props
           </p>
         ) : articles.length === 0 ? (
           <p className="day__note">
-            {topic ? (
-              <>
-                No <span className="day__topic">{topic}</span> articles.
-              </>
-            ) : (
-              'No articles.'
-            )}
+            No {topic && <span className="day__topic">{topic} </span>}articles{source && ` from ${source}`}.
           </p>
         ) : (
-          <ArticleList articles={articles} hideKeyword={topic} isTopic={isTopic} onKeywordClick={onKeywordClick} />
+          <ArticleList articles={articles} hideKeyword={topic} isTopic={isTopic} onKeywordClick={onKeywordClick} onSourceClick={onSourceClick} />
         )}
       </div>
     </section>
   );
 }
 
-/** A topic's articles for the day, or every article of the day (deduplicated, newest first) for "All". */
-function articlesFor(keywords: Keyword[] | undefined, topic: string | null): Article[] {
+/**
+ * A topic's articles for the day, or every article of the day (deduplicated, newest first)
+ * for "All", optionally restricted to one source.
+ */
+function articlesFor(keywords: Keyword[] | undefined, topic: string | null, source: string | null): Article[] {
   if (!keywords) return [];
-  if (topic !== null) return keywords.find((kw) => kw.text === topic)?.articles ?? [];
+  const fromSource = (a: Article) => source === null || a.source_name === source;
+  if (topic !== null) return (keywords.find((kw) => kw.text === topic)?.articles ?? []).filter(fromSource);
 
   const byId = new Map<number, Article>();
   for (const kw of keywords) {
     for (const a of kw.articles) {
-      if (!byId.has(a.id)) byId.set(a.id, a);
+      if (fromSource(a) && !byId.has(a.id)) byId.set(a.id, a);
     }
   }
   return [...byId.values()].sort((a, b) => (a.created < b.created ? 1 : a.created > b.created ? -1 : 0));

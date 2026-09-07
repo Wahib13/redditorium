@@ -6,7 +6,8 @@
 
 .day__header {
   position: sticky;
-  top: 0;
+  /* The chrome overlays the top of every panel; --chrome-h follows the collapsing profile header */
+  top: var(--chrome-h);
   z-index: 5;
   display: flex;
   align-items: baseline;

@@ -10,57 +10,49 @@ interface Props {
   query: string;
   results: ArticleSearchResult[];
   isLoading: boolean;
-  onClear: () => void;
   isTopic?: (text: string) => boolean;
   onKeywordClick?: (text: string) => void;
+  onSourceClick?: (sourceName: string) => void;
 }
 
-export function SearchResults({ query, results, isLoading, onClear, isTopic, onKeywordClick }: Props) {
+/** Body of the search page; the input itself lives in the top bar (SearchBar). */
+export function SearchResults({ query, results, isLoading, isTopic, onKeywordClick, onSourceClick }: Props) {
   const [page, setPage] = useState(0);
+
+  if (!query) {
+    return <p className="empty-state">Search every article by meaning: a topic, a place, a name.</p>;
+  }
+
+  if (isLoading) {
+    return (
+      <div className="loading-container">
+        <div className="loading-spinner" />
+      </div>
+    );
+  }
+
+  if (results.length === 0) {
+    return <p className="empty-state">Nothing matched “{query}”.</p>;
+  }
 
   const totalPages = Math.ceil(results.length / PAGE_SIZE);
   const pageResults = results.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
-  const hasNextPage = page + 1 < totalPages;
 
   return (
-    <section className="search-view">
-      <div className="search-view__head">
-        <button className="search-view__back" onClick={onClear}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="m15 6-6 6 6 6" />
-          </svg>
-          Back
-        </button>
-        <div className="search-view__text">
-          <h1 className="search-view__title">“{query}”</h1>
-          <p className="search-view__count">
-            {isLoading
-              ? 'Searching…'
-              : `${results.length} result${results.length !== 1 ? 's' : ''}`}
-          </p>
-        </div>
-      </div>
-
-      {isLoading ? (
-        <div className="loading-container loading-container--inline">
-          <div className="loading-spinner" />
-        </div>
-      ) : results.length === 0 ? (
-        <p className="empty-state">Nothing matched “{query}”.</p>
-      ) : (
-        <>
-          <ArticleList articles={pageResults} isTopic={isTopic} onKeywordClick={onKeywordClick} />
-          {totalPages > 1 && (
-            <Pagination
-              page={page}
-              totalPages={totalPages}
-              hasNextPage={hasNextPage}
-              onPrevious={() => setPage((p) => p - 1)}
-              onNext={() => setPage((p) => p + 1)}
-              isLoading={isLoading}
-            />
-          )}
-        </>
+    <section className="search-results">
+      <p className="search-results__count">
+        {results.length} {results.length === 1 ? 'result' : 'results'} for “{query}”
+      </p>
+      <ArticleList articles={pageResults} isTopic={isTopic} onKeywordClick={onKeywordClick} onSourceClick={onSourceClick} />
+      {totalPages > 1 && (
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          hasNextPage={page + 1 < totalPages}
+          onPrevious={() => setPage((p) => p - 1)}
+          onNext={() => setPage((p) => p + 1)}
+          isLoading={isLoading}
+        />
       )}
     </section>
   );

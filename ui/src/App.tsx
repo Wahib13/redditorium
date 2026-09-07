@@ -1,13 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { useLocation, useMatch, useNavigate, useSearchParams } from 'react-router-dom';
 import { TopicTabs } from './components/TopicTabs';
 import { Timelines, type TimelinesHandle } from './components/Timelines';
+import { SearchBar } from './components/SearchBar';
 import { SearchResults } from './components/SearchResults';
+import { SourceAvatar } from './components/SourceAvatar';
 import { useKeywordDays } from './hooks/useKeywordDays';
 import { useKeywordUpdates } from './hooks/useKeywordUpdates';
 import { useSearch } from './hooks/useSearch';
 import type { ArticleSearchResult, Keyword } from './data-model/keyword';
 import { shiftDate, utcISODate } from './lib/dates';
+import { rankTrendingKeywords } from './lib/trending';
 import './App.css';
 
 /**
@@ -16,13 +20,44 @@ import './App.css';
  * keywords and does not say which is which, and how custom topics should behave is still open.
  */
 const TOPICS = ['politics', 'technology', 'business', 'health'];
-/** Days load one at a time as a timeline is scrolled, this many at a stretch before asking to continue. */
-const AUTO_LOAD_DAYS = 14;
+/**
+ * The feed window: how many days each timeline shows, today included. All of them load up front,
+ * the keyword tabs are decided from them once, and the feed ends with "all caught up" after the
+ * last one. A candidate for a user setting later.
+ */
+const FEED_DAYS = 5;
+/** Any other keyword with at least this many articles across the window gets a timeline after the topics. */
+const MIN_KEYWORD_ARTICLES = 4;
+/** Ranking those keywords: an article's vote halves every this many hours (see lib/trending.ts). */
+const HALF_LIFE_HOURS = 24;
+/** Top bar height. On Home the bar itself collapses, so this is also its collapse range. */
+const HEADER_H = 52;
+/** Height of the source page's profile header, which is also how many px of scrolling collapse it. */
+const PROFILE_H = 84;
 
-const isTopic = (text: string) => TOPICS.includes(text);
+const BackIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="m15 5-7 7 7 7" />
+  </svg>
+);
+
+const SearchIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
+    <circle cx="11" cy="11" r="7" />
+    <line x1="16.5" y1="16.5" x2="21" y2="21" />
+  </svg>
+);
 
 function App() {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // Routes: "/" is Home, "/source/:name" the same feed restricted to one source, "/search?q=" the search page.
+  const source = useMatch('/source/:name')?.params.name ?? null;
+  const isSearchPage = useMatch('/search') !== null;
+  const [searchParams, setSearchParams] = useSearchParams();
+  const query = isSearchPage ? (searchParams.get('q') ?? '').trim() : '';
 
   // Recomputed on an interval so a tab left open past UTC midnight grows a new "Today" section.
   const [today, setToday] = useState(() => utcISODate(new Date()));
@@ -31,10 +66,8 @@ function App() {
     return () => clearInterval(id);
   }, []);
 
-  // The day list is shared by every topic timeline: today first, then one more day per load.
-  const [dayCount, setDayCount] = useState(1);
-  const [autoCap, setAutoCap] = useState(AUTO_LOAD_DAYS);
-  const dates = useMemo(() => Array.from({ length: dayCount }, (_, i) => shiftDate(today, -i)), [today, dayCount]);
+  // The window's days, newest first, shared by every topic timeline and fetched together.
+  const dates = useMemo(() => Array.from({ length: FEED_DAYS }, (_, i) => shiftDate(today, -i)), [today]);
   const days = useKeywordDays(dates);
 
   // Live updates only ever touch today's query entry, so a past day can never be overwritten.
@@ -44,119 +77,164 @@ function App() {
   );
   useKeywordUpdates(handleWsUpdate);
 
-  // The active timeline by keyword text; null = "All".
+  // Timelines: the fixed topics, then every other keyword with enough articles in the window,
+  // ranked by recency-weighted count. Counted over all sources so Home and source pages share
+  // one tab strip. The window is fixed and this only recomputes when the days' data changes
+  // (initial load, a WebSocket push), so the strip never shifts while the user scrolls.
+  const extraTopics = useMemo(
+    () =>
+      rankTrendingKeywords(
+        days.map((day) => day.keywords),
+        { minArticles: MIN_KEYWORD_ARTICLES, halfLifeHours: HALF_LIFE_HOURS, exclude: TOPICS },
+      ),
+    [days],
+  );
+  const topics = useMemo(() => [...TOPICS, ...extraTopics], [extraTopics]);
+  const isTopic = useCallback((text: string) => topics.includes(text), [topics]);
+
+  // The active timeline by keyword text; null = "All". Carries over between Home and source pages.
   const [activeTopic, setActiveTopic] = useState<string | null>(null);
   const timelinesRef = useRef<TimelinesHandle>(null);
 
-  const [inputValue, setInputValue] = useState('');
-  const [submittedQuery, setSubmittedQuery] = useState('');
-  const searchInputRef = useRef<HTMLInputElement>(null);
-  const { data: searchResults = [] as ArticleSearchResult[], isFetching: isSearching } = useSearch(submittedQuery);
-  const isSearchMode = submittedQuery.trim().length > 0;
+  // Part of the chrome shrinks in step with the scroll: the top bar on Home, the profile header
+  // on a source page. The progress (0…1) is written straight to the --p custom property on .app;
+  // App.css derives every size from it.
+  const appRef = useRef<HTMLDivElement>(null);
+  const setCollapse = useCallback((p: number) => {
+    appRef.current?.style.setProperty('--p', p.toFixed(4));
+  }, []);
+  useEffect(() => {
+    appRef.current?.style.setProperty('--p', '0');
+  }, [source, isSearchPage]);
 
-  const lastDay = days[days.length - 1];
-  const isLoadingMore = lastDay?.isPending ?? false;
-  // Pause on an error (the section offers Retry) and at the cap (the timeline offers "Show older days").
-  const canLoadMore = dayCount < autoCap && !isLoadingMore && !(lastDay?.isError ?? false);
-  const loadMore = useCallback(() => setDayCount((n) => Math.min(n + 1, autoCap)), [autoCap]);
-  const showOlder = useCallback(() => setAutoCap((n) => n + AUTO_LOAD_DAYS), []);
+  const { data: searchResults = [] as ArticleSearchResult[], isFetching: isSearching } = useSearch(query);
+
+  // The source page's logo comes from any loaded article of that source.
+  const sourceIcon = useMemo(() => {
+    if (source === null) return null;
+    for (const day of days) {
+      for (const kw of day.keywords ?? []) {
+        const hit = kw.articles.find((a) => a.source_name === source);
+        if (hit) return hit.source_icon_url;
+      }
+    }
+    return null;
+  }, [days, source]);
 
   function selectTopic(topic: string | null) {
     if (topic === activeTopic) timelinesRef.current?.scrollToTop();
     else setActiveTopic(topic);
   }
 
-  function clearSearch() {
-    setInputValue('');
-    setSubmittedQuery('');
-  }
-
-  function handleSearchSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setSubmittedQuery(inputValue.trim());
-  }
-
-  /** Topic labels in article rows (and search results) jump to that topic's timeline. */
-  function openTopic(text: string) {
-    if (!isTopic(text)) return;
-    clearSearch();
-    setActiveTopic(text);
+  /** Back arrow: the previous page when there is one in this session, else Home. */
+  function goBack() {
+    if (location.key !== 'default') navigate(-1);
+    else navigate('/');
   }
 
   function goHome(e: React.MouseEvent) {
     e.preventDefault();
-    clearSearch();
     selectTopic(null);
   }
 
+  /** Topic labels in article rows jump to that topic's timeline (leaving the search page if needed). */
+  function openTopic(text: string) {
+    if (!isTopic(text)) return;
+    setActiveTopic(text);
+    if (isSearchPage) navigate('/');
+  }
+
+  /** Source avatars and names in article rows open that source's page; the current topic carries over. */
+  function openSource(name: string) {
+    navigate(`/source/${encodeURIComponent(name)}`);
+  }
+
+  const appClass = `app ${source !== null ? 'app--source' : isSearchPage ? 'app--search' : 'app--home'}`;
+  const appVars = { '--header-h': `${HEADER_H}px`, '--profile-h': `${PROFILE_H}px` } as React.CSSProperties;
+
   return (
-    <div className="app">
+    <div className={appClass} ref={appRef} style={appVars}>
       <header className="chrome">
-        <div className="chrome__row">
-          <a className="brand" href="/" onClick={goHome}>
-            <span className="brand__logo" aria-hidden="true">↗</span>
-            <span className="brand__title">Trend Engine</span>
-          </a>
-
-          {!isSearchMode && <TopicTabs topics={TOPICS} active={activeTopic} onSelect={selectTopic} />}
-
-          <form className="search" onSubmit={handleSearchSubmit} role="search">
-            <svg className="search__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
-              <circle cx="11" cy="11" r="7" />
-              <line x1="16.5" y1="16.5" x2="21" y2="21" />
-            </svg>
-            <input
-              ref={searchInputRef}
-              className="search__input"
-              type="search"
-              placeholder="Search articles…"
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-            />
-            {isSearchMode && (
-              <button
-                type="button"
-                className="search__clear"
-                onClick={() => {
-                  clearSearch();
-                  searchInputRef.current?.focus();
-                }}
-                aria-label="Clear search"
-              >
-                ✕
+        <div className="topbar">
+          <div className="topbar__side">
+            {(source !== null || isSearchPage) && (
+              <button className="icon-btn" onClick={goBack} aria-label="Back">
+                <BackIcon />
               </button>
             )}
-          </form>
+          </div>
+
+          <div className="topbar__center">
+            {isSearchPage ? (
+              <SearchBar key={query} initial={query} onSubmit={(q) => setSearchParams(q ? { q } : {})} />
+            ) : source !== null ? (
+              <div className="topbar__profile" aria-hidden="true">
+                <SourceAvatar name={source} iconUrl={sourceIcon} size="s" />
+                <span className="topbar__profile-name">{source}</span>
+              </div>
+            ) : (
+              <>
+                <a className="brand" href="/" onClick={goHome}>
+                  <span className="brand__logo" aria-hidden="true">↗</span>
+                  <span className="brand__title">Trend Engine</span>
+                </a>
+                <button className="icon-btn" onClick={() => navigate('/search')} aria-label="Search">
+                  <SearchIcon />
+                </button>
+              </>
+            )}
+          </div>
+
+          <div className="topbar__side topbar__side--end">
+            {source !== null && (
+              <button className="icon-btn" onClick={() => navigate('/search')} aria-label="Search">
+                <SearchIcon />
+              </button>
+            )}
+          </div>
         </div>
+
+        {source !== null && (
+          <div className="profile">
+            <div className="profile__inner">
+              <h1 className="profile__name">{source}</h1>
+              <SourceAvatar name={source} iconUrl={sourceIcon} size="l" />
+            </div>
+          </div>
+        )}
+
+        {!isSearchPage && <TopicTabs topics={topics} fixedCount={TOPICS.length} active={activeTopic} onSelect={selectTopic} />}
       </header>
 
-      {isSearchMode ? (
+      {isSearchPage ? (
         <main className="page">
           <div className="page__inner">
             <SearchResults
-              key={submittedQuery}
-              query={submittedQuery}
+              key={query}
+              query={query}
               results={searchResults}
               isLoading={isSearching}
-              onClear={clearSearch}
               isTopic={isTopic}
               onKeywordClick={openTopic}
+              onSourceClick={openSource}
             />
           </div>
         </main>
       ) : (
         <Timelines
+          key={source ?? '\0home'}
           ref={timelinesRef}
-          topics={TOPICS}
+          topics={topics}
           active={activeTopic}
           onActiveChange={setActiveTopic}
           days={days}
+          source={source}
           today={today}
-          canLoadMore={canLoadMore}
-          onLoadMore={loadMore}
-          onShowOlder={dayCount >= autoCap && !isLoadingMore ? showOlder : undefined}
           isTopic={isTopic}
           onKeywordClick={openTopic}
+          onSourceClick={source === null ? openSource : undefined}
+          collapseRange={source !== null ? PROFILE_H : HEADER_H}
+          onCollapseChange={setCollapse}
         />
       )}
     </div>

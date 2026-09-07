@@ -2,6 +2,7 @@ import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import DOMPurify from 'dompurify';
 import type { Article } from '../data-model/keyword';
 import { formatArticleTime } from '../lib/dates';
+import { SourceAvatar } from './SourceAvatar';
 import './ArticleRow.css';
 
 interface Props {
@@ -13,9 +14,11 @@ interface Props {
   /** When given, only keywords it accepts are shown as labels (extracted phrases are hidden). */
   isTopic?: (text: string) => boolean;
   onKeywordClick?: (text: string) => void;
+  /** When given, the source avatar and name link to that source's page. */
+  onSourceClick?: (sourceName: string) => void;
 }
 
-export function ArticleRow({ article, distance, hideKeyword, isTopic, onKeywordClick }: Props) {
+export function ArticleRow({ article, distance, hideKeyword, isTopic, onKeywordClick, onSourceClick }: Props) {
   const [expanded, setExpanded] = useState(false);
   // Start true so the summary renders collapsed on first paint; useLayoutEffect corrects it before the browser paints.
   const [isTruncated, setIsTruncated] = useState(true);
@@ -36,19 +39,32 @@ export function ArticleRow({ article, distance, hideKeyword, isTopic, onKeywordC
   const isCollapsed = hasSummary && isTruncated && !expanded;
   const keywords = (article.keywords ?? []).filter((kw) => kw.text !== hideKeyword && (!isTopic || isTopic(kw.text)));
   const title = article.title ?? 'Untitled';
+  const sourceName = article.source_name;
+  const openSource = sourceName && onSourceClick ? () => onSourceClick(sourceName) : undefined;
 
   return (
     <article className="article-row">
+      {sourceName &&
+        (openSource ? (
+          <button className="article-row__avatar" onClick={openSource} aria-label={`Articles from ${sourceName}`}>
+            <SourceAvatar name={sourceName} iconUrl={article.source_icon_url} size="m" />
+          </button>
+        ) : (
+          <div className="article-row__avatar">
+            <SourceAvatar name={sourceName} iconUrl={article.source_icon_url} size="m" />
+          </div>
+        ))}
+
       <div className="article-row__body">
         <div className="article-row__meta">
-          {article.source_name && (
-            <span className="article-row__source">
-              {article.source_icon_url && (
-                <img className="article-row__source-icon" src={article.source_icon_url} alt="" />
-              )}
-              {article.source_name}
-            </span>
-          )}
+          {sourceName &&
+            (openSource ? (
+              <button className="article-row__source" onClick={openSource}>
+                {sourceName}
+              </button>
+            ) : (
+              <span className="article-row__source">{sourceName}</span>
+            ))}
           <time className="article-row__time" dateTime={article.created}>
             {formatArticleTime(article.created)}
           </time>

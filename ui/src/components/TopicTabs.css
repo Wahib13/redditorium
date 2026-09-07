@@ -1,10 +1,10 @@
-/* Sits inside .chrome__row (App.css) between the brand and the search box. */
+/* Own row under the top bar (and the profile header on a source page), inside .chrome (App.css). */
 .topic-tabs {
-  flex: 1 1 0;
-  min-width: 0;
-  align-self: stretch;
-  /* Pull the first tab's padding back so its label lines up with content */
-  margin-left: -12px;
+  width: 100%;
+  max-width: calc(var(--content-w) + 2 * var(--page-x));
+  margin: 0 auto;
+  padding: 0 var(--page-x);
+  height: var(--tabs-h);
 }
 
 .topic-tabs__list {
@@ -12,10 +12,22 @@
   height: 100%;
   overflow-x: auto;
   scrollbar-width: none;
+  /* Bleed the tabs' own padding into the page padding so labels align with content */
+  margin: 0 -12px;
 }
 
 .topic-tabs__list::-webkit-scrollbar {
   display: none;
+}
+
+/* Separates the fixed topics from keyword timelines that earned a tab */
+.topic-tabs__divider {
+  align-self: center;
+  flex-shrink: 0;
+  width: 1px;
+  height: 16px;
+  margin: 0 6px;
+  background: var(--border-strong);
 }
 
 .topic-tab {
@@ -55,14 +67,4 @@
 
 .topic-tab--active::after {
   background: var(--accent);
-}
-
-@media (max-width: 640px) {
-  /* Own row under brand + search, bleeding into the page padding on both sides */
-  .topic-tabs {
-    order: 3;
-    flex: 0 0 100%;
-    height: 42px;
-    margin: 0 -12px;
-  }
 }

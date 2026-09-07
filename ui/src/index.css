@@ -41,8 +41,8 @@
   --radius-l: 14px;
   --radius-pill: 999px;
 
-  /* Layout */
-  --header-h: 56px;
+  /* Layout (--header-h and --profile-h are set inline on .app by App.tsx, shared with JS) */
+  --tabs-h: 42px;
   --content-w: 880px;
   --page-x: 24px;
 
