@@ -11,10 +11,11 @@ interface Props {
   results: ArticleSearchResult[];
   isLoading: boolean;
   onClear: () => void;
+  isTopic?: (text: string) => boolean;
   onKeywordClick?: (text: string) => void;
 }
 
-export function SearchResults({ query, results, isLoading, onClear, onKeywordClick }: Props) {
+export function SearchResults({ query, results, isLoading, onClear, isTopic, onKeywordClick }: Props) {
   const [page, setPage] = useState(0);
 
   const totalPages = Math.ceil(results.length / PAGE_SIZE);
@@ -48,7 +49,7 @@ export function SearchResults({ query, results, isLoading, onClear, onKeywordCli
         <p className="empty-state">Nothing matched “{query}”.</p>
       ) : (
         <>
-          <ArticleList articles={pageResults} onKeywordClick={onKeywordClick} />
+          <ArticleList articles={pageResults} isTopic={isTopic} onKeywordClick={onKeywordClick} />
           {totalPages > 1 && (
             <Pagination
               page={page}

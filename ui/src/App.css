@@ -1,44 +1,44 @@
-/* App shell. Design tokens live in index.css. */
+/* App shell. Design tokens live in index.css.
+   The shell is a fixed-height column: .chrome on top, then either the topic
+   timelines (Timelines.css) or the search page, each scrolling on its own. */
 
 .app {
-  min-height: 100dvh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
   background: var(--bg);
 }
 
-/* ── Column ───────────────────────────────────── */
-.header,
-.page {
+/* ── Chrome: brand · topic tabs · search ──────── */
+.chrome {
+  flex-shrink: 0;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.chrome__row {
   width: 100%;
   max-width: calc(var(--content-w) + 2 * var(--page-x));
   margin: 0 auto;
-  padding-left: var(--page-x);
-  padding-right: var(--page-x);
-}
-
-.page {
-  flex: 1;
-  padding-bottom: 72px;
-}
-
-/* ── Header ───────────────────────────────────── */
-.header {
-  height: var(--header-h);
+  padding: 0 var(--page-x);
   display: flex;
   align-items: center;
-  gap: 16px;
+  flex-wrap: wrap;
+  gap: 0 16px;
+  min-height: var(--header-h);
 }
 
-.header__brand {
+.brand {
   display: flex;
   align-items: center;
   gap: 9px;
+  height: var(--header-h);
   flex-shrink: 0;
   color: var(--text-1);
 }
 
-.header__logo {
+.brand__logo {
   width: 24px;
   height: 24px;
   border-radius: 7px;
@@ -50,23 +50,22 @@
   font-weight: 800;
 }
 
-.header__title {
+.brand__title {
   font-size: 14px;
   font-weight: 650;
   letter-spacing: -0.02em;
 }
 
 /* ── Search ───────────────────────────────────── */
-.header__search {
-  margin-left: auto;
-  flex: 1;
-  max-width: 320px;
+.search {
   position: relative;
   display: flex;
   align-items: center;
+  width: 240px;
+  margin-left: auto;
 }
 
-.search-icon {
+.search__icon {
   position: absolute;
   left: 11px;
   width: 14px;
@@ -75,7 +74,7 @@
   pointer-events: none;
 }
 
-.search-input {
+.search__input {
   width: 100%;
   height: 34px;
   padding: 0 32px 0 32px;
@@ -89,25 +88,25 @@
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.search-input::placeholder {
+.search__input::placeholder {
   color: var(--text-3);
 }
 
-.search-input:hover {
+.search__input:hover {
   border-color: var(--border-strong);
 }
 
-.search-input:focus {
+.search__input:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
 /* Hide the native WebKit clear button; we render our own */
-.search-input::-webkit-search-cancel-button {
+.search__input::-webkit-search-cancel-button {
   -webkit-appearance: none;
 }
 
-.search-clear {
+.search__clear {
   position: absolute;
   right: 6px;
   display: grid;
@@ -120,56 +119,23 @@
   transition: background 0.15s ease, color 0.15s ease;
 }
 
-.search-clear:hover {
+.search__clear:hover {
   background: var(--surface-3);
   color: var(--text-1);
 }
 
-/* ── Topic sections ("All" overview) ──────────── */
-.topic-section + .topic-section {
-  margin-top: 32px;
+/* ── Search page ──────────────────────────────── */
+.page {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 
-.topic-section__head {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  margin-bottom: 10px;
-  padding: 0 2px;
-}
-
-.topic-section__title {
-  font-size: 17px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  text-transform: capitalize;
-  color: var(--text-1);
-}
-
-.topic-section__count {
-  font-size: 12.5px;
-  font-variant-numeric: tabular-nums;
-  color: var(--text-3);
-}
-
-.topic-section__more {
-  margin-left: auto;
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--accent-text);
-  transition: opacity 0.12s ease;
-}
-
-.topic-section__more svg {
-  width: 14px;
-  height: 14px;
-}
-
-.topic-section__more:hover {
-  opacity: 0.75;
+.page__inner {
+  width: 100%;
+  max-width: calc(var(--content-w) + 2 * var(--page-x));
+  margin: 0 auto;
+  padding: 0 var(--page-x) 72px;
 }
 
 /* ── States ───────────────────────────────────── */
@@ -178,17 +144,6 @@
   color: var(--text-3);
   font-size: 14px;
   padding: 56px 0;
-}
-
-.empty-state__topic {
-  text-transform: capitalize;
-}
-
-.empty-state--error h2 {
-  color: var(--text-1);
-  font-size: 17px;
-  letter-spacing: -0.01em;
-  margin-bottom: 4px;
 }
 
 .loading-container {
@@ -212,20 +167,17 @@
 }
 
 /* ── Mobile ───────────────────────────────────── */
-@media (max-width: 560px) {
-  .header {
-    gap: 10px;
+@media (max-width: 640px) {
+  .chrome__row {
+    gap: 0 10px;
   }
 
-  .header__title {
+  .brand__title {
     display: none;
   }
 
-  .header__search {
-    max-width: none;
-  }
-
-  .topic-section + .topic-section {
-    margin-top: 24px;
+  .search {
+    flex: 1;
+    width: auto;
   }
 }

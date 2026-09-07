@@ -10,10 +10,12 @@ interface Props {
   distance?: number;
   /** Keyword already implied by the surrounding section; omitted from the meta line. */
   hideKeyword?: string | null;
+  /** When given, only keywords it accepts are shown as labels (extracted phrases are hidden). */
+  isTopic?: (text: string) => boolean;
   onKeywordClick?: (text: string) => void;
 }
 
-export function ArticleRow({ article, distance, hideKeyword, onKeywordClick }: Props) {
+export function ArticleRow({ article, distance, hideKeyword, isTopic, onKeywordClick }: Props) {
   const [expanded, setExpanded] = useState(false);
   // Start true so the summary renders collapsed on first paint; useLayoutEffect corrects it before the browser paints.
   const [isTruncated, setIsTruncated] = useState(true);
@@ -32,7 +34,7 @@ export function ArticleRow({ article, distance, hideKeyword, onKeywordClick }: P
   );
   const hasSummary = !!safeSummary;
   const isCollapsed = hasSummary && isTruncated && !expanded;
-  const keywords = (article.keywords ?? []).filter((kw) => kw.text !== hideKeyword);
+  const keywords = (article.keywords ?? []).filter((kw) => kw.text !== hideKeyword && (!isTopic || isTopic(kw.text)));
   const title = article.title ?? 'Untitled';
 
   return (
