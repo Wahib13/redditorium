@@ -5,11 +5,14 @@ import './ArticleList.css';
 interface Props {
   articles: (Article | ArticleSearchResult)[];
   hideKeyword?: string | null;
+  /** When given, only keywords it accepts are shown as labels. */
+  isTopic?: (text: string) => boolean;
   onKeywordClick?: (text: string) => void;
+  onSourceClick?: (sourceName: string) => void;
 }
 
 /** A single bordered sheet of article rows separated by hairlines. */
-export function ArticleList({ articles, hideKeyword, onKeywordClick }: Props) {
+export function ArticleList({ articles, hideKeyword, isTopic, onKeywordClick, onSourceClick }: Props) {
   return (
     <div className="article-list">
       {articles.map((article) => (
@@ -18,7 +21,9 @@ export function ArticleList({ articles, hideKeyword, onKeywordClick }: Props) {
           article={article}
           distance={'distance' in article ? article.distance : undefined}
           hideKeyword={hideKeyword}
+          isTopic={isTopic}
           onKeywordClick={onKeywordClick}
+          onSourceClick={onSourceClick}
         />
       ))}
     </div>

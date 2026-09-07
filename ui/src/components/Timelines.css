@@ -1,0 +1,71 @@
+/* Horizontal strip of topic panels. Fills the whole app; .chrome (App.css) overlays its top,
+   so each panel's inner column starts with padding equal to the expanded chrome height. */
+.timelines {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  /* Keep a trackpad swipe past the first/last panel from triggering browser back/forward */
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+
+.timelines::-webkit-scrollbar {
+  display: none;
+}
+
+/* One panel per topic: a full-width vertical scroller with its own scroll position */
+.timeline {
+  flex: 0 0 100%;
+  min-width: 0;
+  height: 100%;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+  outline: none;
+}
+
+.timeline__inner {
+  width: 100%;
+  max-width: calc(var(--content-w) + 2 * var(--page-x));
+  margin: 0 auto;
+  padding: var(--chrome-max) var(--page-x) 0;
+  /* On a source page every panel must be scrollable by at least the profile header's height,
+     so the header can always be kept where it is when swiping in from another panel. */
+  min-height: calc(100% + var(--panel-extra));
+}
+
+/* End of the window */
+.timeline__foot {
+  display: flex;
+  justify-content: center;
+  min-height: 48px;
+  padding: 12px 0 80px;
+}
+
+.timeline__caught-up {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-2);
+  text-align: center;
+}
+
+.timeline__caught-up svg {
+  width: 26px;
+  height: 26px;
+  margin-bottom: 6px;
+  color: var(--accent);
+}
+
+.timeline__caught-up-sub {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--text-3);
+}

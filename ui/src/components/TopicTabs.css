@@ -1,0 +1,70 @@
+/* Own row under the top bar (and the profile header on a source page), inside .chrome (App.css). */
+.topic-tabs {
+  width: 100%;
+  max-width: calc(var(--content-w) + 2 * var(--page-x));
+  margin: 0 auto;
+  padding: 0 var(--page-x);
+  height: var(--tabs-h);
+}
+
+.topic-tabs__list {
+  display: flex;
+  height: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+  /* Bleed the tabs' own padding into the page padding so labels align with content */
+  margin: 0 -12px;
+}
+
+.topic-tabs__list::-webkit-scrollbar {
+  display: none;
+}
+
+/* Separates the fixed topics from keyword timelines that earned a tab */
+.topic-tabs__divider {
+  align-self: center;
+  flex-shrink: 0;
+  width: 1px;
+  height: 16px;
+  margin: 0 6px;
+  background: var(--border-strong);
+}
+
+.topic-tab {
+  position: relative;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 12px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--text-2);
+  white-space: nowrap;
+  text-transform: capitalize;
+  transition: color 0.12s ease;
+}
+
+.topic-tab::after {
+  content: '';
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 0;
+  height: 2px;
+  border-radius: 2px 2px 0 0;
+  background: transparent;
+  transition: background 0.12s ease;
+}
+
+.topic-tab:hover {
+  color: var(--text-1);
+}
+
+.topic-tab--active {
+  color: var(--text-1);
+  font-weight: 600;
+}
+
+.topic-tab--active::after {
+  background: var(--accent);
+}

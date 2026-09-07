@@ -1,175 +1,207 @@
-/* App shell. Design tokens live in index.css. */
+/* App shell. Design tokens live in index.css.
+   .chrome (top bar · profile header on a source page · topic tabs) is an overlay
+   pinned to the top; the timelines and the search page fill the whole height
+   underneath it and pad their content down by the expanded chrome height.
+
+   --p (0…1, set on .app from JS as the visible timeline scrolls) is how far the
+   collapsing part of the chrome has shrunk: the top bar on Home, the profile
+   header on a source page. Everything that depends on it is a calc() below, so
+   it tracks the scroll one to one with no React re-render involved. */
 
 .app {
-  min-height: 100dvh;
+  --p: 0;
+  --chrome-max: calc(var(--header-h) + var(--tabs-h));
+  --chrome-h: var(--chrome-max);
+  --panel-extra: 0px;
+
+  position: relative;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
   background: var(--bg);
 }
 
-/* ── Column ───────────────────────────────────── */
-.header,
-.page {
+/* Home: the top bar (brand + search) scrolls away, leaving the tabs */
+.app--home {
+  --chrome-h: calc(var(--chrome-max) - var(--p) * var(--header-h));
+  --panel-extra: var(--header-h);
+}
+
+.app--home .topbar {
+  height: calc(var(--header-h) * (1 - var(--p)));
+  opacity: calc(1 - var(--p) * 1.4);
+  overflow: hidden;
+}
+
+/* Source page: the profile header scrolls away, the top bar stays (with the small profile) */
+.app--source {
+  --chrome-max: calc(var(--header-h) + var(--profile-h) + var(--tabs-h));
+  --chrome-h: calc(var(--chrome-max) - var(--p) * var(--profile-h));
+  --panel-extra: var(--profile-h);
+}
+
+.app--search {
+  --chrome-max: var(--header-h);
+}
+
+.chrome {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  background: var(--bg-glass);
+  backdrop-filter: blur(12px) saturate(1.3);
+  -webkit-backdrop-filter: blur(12px) saturate(1.3);
+  /* A shadow rather than a border so the chrome's height stays exactly --chrome-h */
+  box-shadow: 0 1px 0 var(--border);
+}
+
+/* ── Top bar: [back] · centre · [search] ───────── */
+.topbar {
   width: 100%;
   max-width: calc(var(--content-w) + 2 * var(--page-x));
   margin: 0 auto;
-  padding-left: var(--page-x);
-  padding-right: var(--page-x);
-}
-
-.page {
-  flex: 1;
-  padding-bottom: 72px;
-}
-
-/* ── Header ───────────────────────────────────── */
-.header {
+  padding: 0 var(--page-x);
   height: var(--header-h);
-  display: flex;
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) 40px;
   align-items: center;
-  gap: 16px;
+  gap: 8px;
 }
 
-.header__brand {
+.topbar__side {
   display: flex;
   align-items: center;
-  gap: 9px;
-  flex-shrink: 0;
+}
+
+.topbar__side--end {
+  justify-content: flex-end;
+}
+
+.topbar__center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.icon-btn {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--text-2);
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.icon-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+.icon-btn:hover {
+  background: var(--surface-2);
   color: var(--text-1);
 }
 
-.header__logo {
-  width: 24px;
-  height: 24px;
+/* Brand (Home title) */
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-1);
+}
+
+.brand__logo {
+  width: 22px;
+  height: 22px;
   border-radius: 7px;
   background: linear-gradient(135deg, var(--accent) 0%, #a855f7 100%);
   display: grid;
   place-items: center;
   color: #fff;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 800;
 }
 
-.header__title {
-  font-size: 14px;
-  font-weight: 650;
+.brand__title {
+  font-size: 16px;
+  font-weight: 700;
   letter-spacing: -0.02em;
 }
 
-/* ── Search ───────────────────────────────────── */
-.header__search {
-  margin-left: auto;
-  flex: 1;
-  max-width: 320px;
-  position: relative;
+/* Small profile in the top bar: fades in as the big header shrinks away */
+.topbar__profile {
   display: flex;
   align-items: center;
-}
-
-.search-icon {
-  position: absolute;
-  left: 11px;
-  width: 14px;
-  height: 14px;
-  color: var(--text-3);
+  gap: 8px;
+  min-width: 0;
+  opacity: var(--p);
+  transform: translateY(calc(6px * (1 - var(--p))));
   pointer-events: none;
 }
 
-.search-input {
-  width: 100%;
-  height: 34px;
-  padding: 0 32px 0 32px;
-  font-size: 13px;
-  font-family: inherit;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-pill);
-  background: var(--surface);
-  color: var(--text-1);
-  outline: none;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
-}
-
-.search-input::placeholder {
-  color: var(--text-3);
-}
-
-.search-input:hover {
-  border-color: var(--border-strong);
-}
-
-.search-input:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-soft);
-}
-
-/* Hide the native WebKit clear button; we render our own */
-.search-input::-webkit-search-cancel-button {
-  -webkit-appearance: none;
-}
-
-.search-clear {
-  position: absolute;
-  right: 6px;
-  display: grid;
-  place-items: center;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  font-size: 11px;
-  color: var(--text-3);
-  transition: background 0.15s ease, color 0.15s ease;
-}
-
-.search-clear:hover {
-  background: var(--surface-3);
-  color: var(--text-1);
-}
-
-/* ── Topic sections ("All" overview) ──────────── */
-.topic-section + .topic-section {
-  margin-top: 32px;
-}
-
-.topic-section__head {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  margin-bottom: 10px;
-  padding: 0 2px;
-}
-
-.topic-section__title {
-  font-size: 17px;
+.topbar__profile-name {
+  font-size: 15px;
   font-weight: 700;
   letter-spacing: -0.02em;
-  text-transform: capitalize;
-  color: var(--text-1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.topic-section__count {
-  font-size: 12.5px;
-  font-variant-numeric: tabular-nums;
-  color: var(--text-3);
+/* ── Profile header (source page) ─────────────── */
+/* Shrinks from --profile-h to 0 as --p goes 0 → 1; its contents scale down and fade with it */
+.profile {
+  height: calc(var(--profile-h) * (1 - var(--p)));
+  overflow: hidden;
+  opacity: calc(1 - var(--p) * 1.4);
 }
 
-.topic-section__more {
-  margin-left: auto;
-  display: inline-flex;
+.profile__inner {
+  width: 100%;
+  max-width: calc(var(--content-w) + 2 * var(--page-x));
+  margin: 0 auto;
+  padding: 6px var(--page-x) 0;
+  display: flex;
   align-items: center;
-  gap: 2px;
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--accent-text);
-  transition: opacity 0.12s ease;
+  justify-content: space-between;
+  gap: 16px;
 }
 
-.topic-section__more svg {
-  width: 14px;
-  height: 14px;
+.profile__name {
+  font-size: calc(24px - 9px * var(--p));
+  font-weight: 750;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  color: var(--text-1);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.topic-section__more:hover {
-  opacity: 0.75;
+.profile .avatar {
+  width: calc(64px - 38px * var(--p));
+  height: calc(64px - 38px * var(--p));
+}
+
+/* ── Search page body ─────────────────────────── */
+.page {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.page__inner {
+  width: 100%;
+  max-width: calc(var(--content-w) + 2 * var(--page-x));
+  margin: 0 auto;
+  padding: var(--chrome-max) var(--page-x) 72px;
 }
 
 /* ── States ───────────────────────────────────── */
@@ -178,17 +210,6 @@
   color: var(--text-3);
   font-size: 14px;
   padding: 56px 0;
-}
-
-.empty-state__topic {
-  text-transform: capitalize;
-}
-
-.empty-state--error h2 {
-  color: var(--text-1);
-  font-size: 17px;
-  letter-spacing: -0.01em;
-  margin-bottom: 4px;
 }
 
 .loading-container {
@@ -209,23 +230,4 @@
 
 @keyframes spin {
   to { transform: rotate(360deg); }
-}
-
-/* ── Mobile ───────────────────────────────────── */
-@media (max-width: 560px) {
-  .header {
-    gap: 10px;
-  }
-
-  .header__title {
-    display: none;
-  }
-
-  .header__search {
-    max-width: none;
-  }
-
-  .topic-section + .topic-section {
-    margin-top: 24px;
-  }
 }
